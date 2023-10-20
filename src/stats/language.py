@@ -17,6 +17,7 @@ class Language:
             for pattern in self.pattern_map:
                 if pattern(char):
                     result += self.pattern_map[pattern]
+                    break
 
         return result
 
