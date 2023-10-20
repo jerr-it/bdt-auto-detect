@@ -1,9 +1,11 @@
 """
-This module contains the necessary functions to generalize values into patterns and calculate the NPMI score of patterns.
+This module contains the necessary functions to generalize
+values into patterns and calculate the NPMI score of patterns.
 """
 import math
-
 import pandas as pd
+
+import src.stats.language as language
 
 
 def convert_to_pattern(series: pd.Series):
@@ -12,32 +14,70 @@ def convert_to_pattern(series: pd.Series):
     characters into classes (digits, upper and lower case letters) and leaving all other characters as they are.
     (Also known as G() in the paper)
     """
+    G = language.G
+    series_copy = series.copy()  # Maybe don't need copy
+    return series_copy.apply(G)
+
+
+class PatternCountCache:
+    """
+    This class is used to compute and cache the count of patterns in all given columns.
+    """
+
+    def __init__(self):
+        self.cache: dict[int] = {}
+        self.total_columns = 0
+        self.columns: list[pd.Series] = []
+
+    def pattern_occurrences(self, pattern: str) -> int | None:
+        """
+        Returns the count of a pattern if it is cached, otherwise returns None.
+        """
+        ...
+
+    def pattern_pair_occurrences(self, pattern1: str, pattern2: str) -> int:
+        """
+        Computes the count of a patter pair on the fly.
+        """
+        ...
+
+    def total_length(self) -> int:
+        """
+        Returns the total length of all columns.
+        """
+        ...
+
+    def add_data(self, pattern: str, columns: list[pd.Series] | pd.DataFrame | pd.Series) -> None:
+        """
+        Computes the count of all patterns in the given data and caches the result.
+        """
+        ...
 
 
 class ValueColumnList:
-    def __init__(self, data):
-        if isinstance(data, pd.DataFrame):
-            self.data = data.values.T.tolist()  # Transpose DataFrame and convert to a list of columns
-        elif all(isinstance(col, list) for col in data):
-            self.data = data
-        else:
-            raise ValueError("Invalid input data format. Use a DataFrame or a list of columns.")
+    def __init__(self, cache: PatternCountCache):
+        if isinstance(cache, PatternCountCache):
+            raise ValueError("Cache must be of type PatternCountCache")
+
+        self.cache = cache
 
     def single_probability(self, value):
-        occurrences = sum(value in col for col in self.data)
-        return occurrences / len(self.data)
+        occurrences = self.cache.pattern_occurrences(value)
+        return occurrences / self.cache.total_length()
 
     def paired_probability(self, value1, value2):
-        occurrences = sum((value1 in col) and (value2 in col) for col in self.data)
-        return occurrences / len(self.data)
+        occurrences = self.cache.pattern_pair_occurrences(value1, value2)
+        return occurrences / self.cache.total_length()
 
     def smoothed_probability(self, value1, value2, smoothing=0.2):
-        actual_occurrences = sum((value1 in col) and (value2 in col) for col in self.data)
-        value1_occurrences = sum(value1 in col for col in self.data)
-        value2_occurrences = sum(value2 in col for col in self.data)
-        expected_occurrences = (value1_occurrences * value2_occurrences) / len(self.data)
+        actual_occurrences = self.cache.pattern_pair_occurrences(value1, value2)
+        value1_occurrences = self.cache.pattern_occurrences(value1)
+        value2_occurrences = self.cache.pattern_occurrences(value2)
+
+        expected_occurrences = (value1_occurrences * value2_occurrences) / self.cache.total_length()
         smoothed_occurrences = (1 - smoothing) * actual_occurrences + smoothing * expected_occurrences
-        return smoothed_occurrences / len(self.data)
+
+        return smoothed_occurrences / self.cache.total_length()
 
     def pmi(self, value1, value2):
         denominator = self.single_probability(value1) * self.single_probability(value2)
@@ -73,4 +113,3 @@ class ValueColumnList:
 def safe_log10(value):
     if value == 0: return float("-inf")
     return math.log10(value)
-
