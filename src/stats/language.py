@@ -8,8 +8,9 @@ class Language:
     The pattern map defines the mapping of a character to a pattern.
     See G() for an example.
     """
-    def __init__(self, pattern_map: dict[Callable, str]):
+    def __init__(self, pattern_map: dict[Callable, str], threshold=0.0):
         self.pattern_map = pattern_map
+        self.threshold = threshold
 
     def convert(self, value: str) -> str:
         result = ""
@@ -43,4 +44,4 @@ G = Language({
     str.isupper: "U",
     str.islower: "L",
     lambda x: True: "S",
-})
+}, threshold=-0.3)
