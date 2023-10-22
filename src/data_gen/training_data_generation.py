@@ -83,11 +83,15 @@ class TestSet:
             C1 = self.columns.sample_column()
             C2 = self.columns.sample_column()
 
+            if C1.equals(C2):
+                continue
+
+            # print("1")
+
             if not self.is_compatible(C1, C2):
                 continue
 
-            if C1 == C2:
-                continue
+            # print("2")
 
             for i in range(samples_per_iteration):
                 result.append((C1.sample(), C2.sample(), Label.NEGATIVE))

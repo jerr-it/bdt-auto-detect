@@ -16,7 +16,11 @@ def convert_to_pattern(df: pd.DataFrame, language: Language) -> pd.DataFrame:
     characters into classes (digits, upper and lower case letters) and leaving all other characters as they are.
     (Also known as G() in the paper)
     """
-    return df.apply(language.convert)
+    for column in df:
+        df[column] = df[column].astype(str)
+        df[column].apply(language.convert)
+
+    return df
 
 
 class PatternCountCache:
@@ -40,14 +44,16 @@ class PatternCountCache:
         """
         Returns the count of a pattern if it is cached, otherwise returns None.
         """
-        return self.cmk.query(pattern)
+        return self.dict[pattern]
+        # return self.cmk.query(pattern)
 
     def pattern_pair_occurrences(self, pattern1: str, pattern2: str) -> int:
         """
         Computes the count of a pattern pair on the fly.
         """
-        key = "\0".join(sorted([pattern1, pattern2]))
-        return self.cmk.query(key)
+        key = "Ä".join(sorted([pattern1, pattern2]))
+        return self.dict[key]
+        # return self.cmk.query(key)
 
     def total_length(self) -> int:
         """
