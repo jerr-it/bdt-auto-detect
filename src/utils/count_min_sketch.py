@@ -22,9 +22,6 @@ class CountMinSketch(object):
         for i in range(self.d):
             self.M[i][self.hash_functions[i](x) % self.w] += delta
 
-    def batch_add(self, lst):
-        pass
-
     def query(self, x):
         return min([self.M[i][self.hash_functions[i](x) % self.w] for i in range(self.d)])
 

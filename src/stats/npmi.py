@@ -5,7 +5,7 @@ values into patterns and calculate the NPMI score of patterns.
 import math
 import pandas as pd
 
-from src.stats.language import Language, G
+from src.stats.language import Language
 from src.utils.hash_factory import hash_function
 from src.utils.count_min_sketch import CountMinSketch
 

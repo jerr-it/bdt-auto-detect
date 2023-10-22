@@ -1,5 +1,8 @@
 # https://github.com/21zhouyun/CountMinSketch/blob/master/hashfactory.py
-from random import random
+import random
+import hashlib
+
+_memomask = {}
 
 
 def hash_function(n):
