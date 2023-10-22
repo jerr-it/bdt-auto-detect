@@ -34,6 +34,8 @@ class PatternCountCache:
         hash_functions = [hash_function(i) for i in range(depth)]
         self.cmk = CountMinSketch(depth, width, hash_functions)
 
+        self.dict = {}
+
     def pattern_occurrences(self, pattern: str) -> int | None:
         """
         Returns the count of a pattern if it is cached, otherwise returns None.
@@ -56,30 +58,37 @@ class PatternCountCache:
     def add_data(self, df: pd.DataFrame, language: Language) -> None:
         """
         Computes the count of all patterns in the given data and caches the result.
+        # TODO complete pair calc
         """
         converted = convert_to_pattern(df, language)
         self.column_count += df.shape[1]
 
         for column in converted:
-            column_unique = column.unique()
+            column_unique = df[column].unique()
             for pattern1 in column_unique:
-                self.cmk.add(pattern1)
+                #self.cmk.add(pattern1)
+
+                self.dict[pattern1] = self.dict.get(pattern1, 0) + 1
 
                 for pattern2 in column_unique:
                     patterns = sorted([pattern1, pattern2])
-                    key = "\0".join(patterns)
-                    self.cmk.add(key)
+                    key = "Ä".join(patterns)
+                    #self.cmk.add(key)
+
+                    self.dict[key] = self.dict.get(key, 0) + 1
 
 
 class ValueColumnList:
     def __init__(self, cache: PatternCountCache):
-        if isinstance(cache, PatternCountCache):
+        if not isinstance(cache, PatternCountCache):
             raise ValueError("Cache must be of type PatternCountCache")
 
         self.cache = cache
 
     def single_probability(self, value):
         occurrences = self.cache.pattern_occurrences(value)
+        print(occurrences)
+
         return occurrences / self.cache.total_length()
 
     def paired_probability(self, value1, value2):
@@ -98,6 +107,7 @@ class ValueColumnList:
 
     def pmi(self, value1, value2):
         denominator = self.single_probability(value1) * self.single_probability(value2)
+
         if denominator == 0: return float("-inf")
 
         ratio = self.paired_probability(value1, value2) / denominator

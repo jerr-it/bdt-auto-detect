@@ -1,3 +1,4 @@
+import random
 from enum import Enum
 from typing import Any
 
@@ -32,8 +33,13 @@ class CleanColumns:
         """
         Returns a random column from the corpus.
         """
-        df = np.random.choice(self.corpus)
-        return np.random.choice(df)
+        df = random.choice(self.corpus)
+
+        while len(df.columns) == 0:
+            df = random.choice(self.corpus)
+
+        col = random.choice(df.columns)
+        return df[col]
 
 
 class TestSet:
