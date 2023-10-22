@@ -38,11 +38,11 @@ class PatternCountCache:
         """
         Returns the count of a pattern if it is cached, otherwise returns None.
         """
-        ...
+        return self.cmk.query(pattern)
 
     def pattern_pair_occurrences(self, pattern1: str, pattern2: str) -> int:
         """
-        Computes the count of a patter pair on the fly.
+        Computes the count of a pattern pair on the fly.
         """
         key = "\0".join(sorted([pattern1, pattern2]))
         return self.cmk.query(key)
