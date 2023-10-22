@@ -5,18 +5,18 @@ values into patterns and calculate the NPMI score of patterns.
 import math
 import pandas as pd
 
-import src.stats.language as language
+from src.stats.language import Language, G
+from src.utils.hash_factory import hash_function
+from src.utils.count_min_sketch import CountMinSketch
 
 
-def convert_to_pattern(series: pd.Series):
+def convert_to_pattern(df: pd.DataFrame, language: Language) -> pd.DataFrame:
     """
     Generalizes all entries in a series by converting them all into a pattern. The pattern is created by grouping the
     characters into classes (digits, upper and lower case letters) and leaving all other characters as they are.
     (Also known as G() in the paper)
     """
-    G = language.G
-    series_copy = series.copy()  # Maybe don't need copy
-    return series_copy.apply(G)
+    return df.apply(language.convert)
 
 
 class PatternCountCache:
@@ -25,9 +25,14 @@ class PatternCountCache:
     """
 
     def __init__(self):
-        self.cache: dict[int] = {}
-        self.total_columns = 0
-        self.columns: list[pd.Series] = []
+        self.column_count = 0
+
+        # TODO calculate
+        depth = 8
+        width = 2 ** 22
+
+        hash_functions = [hash_function(i) for i in range(depth)]
+        self.cmk = CountMinSketch(depth, width, hash_functions)
 
     def pattern_occurrences(self, pattern: str) -> int | None:
         """
@@ -39,19 +44,31 @@ class PatternCountCache:
         """
         Computes the count of a patter pair on the fly.
         """
-        ...
+        key = "\0".join(sorted([pattern1, pattern2]))
+        return self.cmk.query(key)
 
     def total_length(self) -> int:
         """
-        Returns the total length of all columns.
+        Returns the total number of columns |C|
         """
-        ...
+        return self.column_count
 
-    def add_data(self, pattern: str, columns: list[pd.Series] | pd.DataFrame | pd.Series) -> None:
+    def add_data(self, df: pd.DataFrame, language: Language) -> None:
         """
         Computes the count of all patterns in the given data and caches the result.
         """
-        ...
+        converted = convert_to_pattern(df, language)
+        self.column_count += df.shape[1]
+
+        for column in converted:
+            column_unique = column.unique()
+            for pattern1 in column_unique:
+                self.cmk.add(pattern1)
+
+                for pattern2 in column_unique:
+                    patterns = sorted([pattern1, pattern2])
+                    key = "\0".join(patterns)
+                    self.cmk.add(key)
 
 
 class ValueColumnList:
