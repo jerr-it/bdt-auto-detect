@@ -4,6 +4,7 @@ values into patterns and calculate the NPMI score of patterns.
 """
 import math
 import pandas as pd
+import itertools
 
 from src.stats.language import Language
 from src.utils.hash_factory import hash_function
@@ -18,7 +19,7 @@ def convert_to_pattern(df: pd.DataFrame, language: Language) -> pd.DataFrame:
     """
     for column in df:
         df[column] = df[column].astype(str)
-        df[column].apply(language.convert)
+        df[column] = df[column].apply(language.convert)
 
     return df
 
@@ -40,19 +41,19 @@ class PatternCountCache:
 
         self.dict = {}
 
-    def pattern_occurrences(self, pattern: str) -> int | None:
+    def pattern_occurrences(self, pattern: str) -> int:
         """
-        Returns the count of a pattern if it is cached, otherwise returns None.
+        Returns the count of a pattern.
         """
         return self.dict[pattern]
         # return self.cmk.query(pattern)
 
     def pattern_pair_occurrences(self, pattern1: str, pattern2: str) -> int:
         """
-        Computes the count of a pattern pair on the fly.
+        Return the count of a pattern pair.
         """
         key = "Ä".join(sorted([pattern1, pattern2]))
-        return self.dict[key]
+        return self.dict[key] if key in self.dict else 0
         # return self.cmk.query(key)
 
     def total_length(self) -> int:
@@ -71,17 +72,20 @@ class PatternCountCache:
 
         for column in converted:
             column_unique = df[column].unique()
-            for pattern1 in column_unique:
+
+            unique_tuples = itertools.combinations(column_unique, 2)
+
+            for pattern in column_unique:
                 #self.cmk.add(pattern1)
 
-                self.dict[pattern1] = self.dict.get(pattern1, 0) + 1
+                # if "LuLuLuLuLuLuLuLu" in pattern1:
+                #     print(pattern1)
+                self.dict[pattern] = self.dict.get(pattern, 0) + 1
 
-                for pattern2 in column_unique:
-                    patterns = sorted([pattern1, pattern2])
-                    key = "Ä".join(patterns)
-                    #self.cmk.add(key)
-
-                    self.dict[key] = self.dict.get(key, 0) + 1
+            for combo in unique_tuples:
+                key = "\0".join(sorted(combo))
+                self.dict[key] = self.dict.get(key, 0) + 1
+                # self.cmk.add(key)
 
 
 class ValueColumnList:
