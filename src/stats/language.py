@@ -8,7 +8,7 @@ class Language:
     The pattern map defines the mapping of a character to a pattern.
     See G() for an example.
     """
-    def __init__(self, pattern_map: dict[Callable, str], threshold=0.0):
+    def __init__(self, pattern_map: dict[Callable, Callable], threshold=0.0):
         self.pattern_map = pattern_map
         self.threshold = threshold
 
@@ -16,9 +16,9 @@ class Language:
         result = ""
 
         for char in value:
-            for pattern in self.pattern_map:
+            for pattern, generalization in self.pattern_map.items():
                 if pattern(char):
-                    result += self.pattern_map[pattern]
+                    result += generalization(char)
                     break
 
         return result
@@ -26,10 +26,10 @@ class Language:
 
 # H is the set of possible languages
 H = {
-    str.isupper: ["Lu", "L", "A"],
-    str.islower: ["Ll", "L", "A"],
-    str.isdigit: ["D", "A"],
-    lambda x: True: ["S", "A"],
+    str.isupper: [lambda x: "Lu", lambda x: "L", lambda x: "A", lambda x: x],
+    str.islower: [lambda x: "Ll", lambda x: "L", lambda x: "A", lambda x: x],
+    str.isdigit: [lambda x: "D", lambda x: "A", lambda x: x],
+    lambda x: True: [lambda x: "S", lambda x: "A", lambda x: x],
 }
 
 # L is the set of candidate languages
@@ -40,8 +40,8 @@ for candidate in itertools.product(*H.values()):
 # G, crude generalization language
 # Not to be confused with the G of the greedy algorithm in the paper
 G = Language({
-    str.isdigit: "D",
-    str.isupper: "U",
-    str.islower: "L",
-    lambda x: True: "S",
+    str.isdigit: lambda x: "D",
+    str.isupper: lambda x: "Lu",
+    str.islower: lambda x: "Ll",
+    lambda x: True: lambda x: x,
 }, threshold=-0.3)
