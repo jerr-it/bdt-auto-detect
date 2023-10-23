@@ -86,12 +86,8 @@ class TestSet:
             if C1.equals(C2):
                 continue
 
-            # print("1")
-
             if self.is_compatible(C1, C2):
                 continue
-
-            # print("2")
 
             for i in range(samples_per_iteration):
                 result.append((C1.sample(1).to_numpy()[0], C2.sample(1).to_numpy()[0], Label.NEGATIVE))
@@ -114,9 +110,7 @@ class TestSet:
         """
         # TODO only take one random value from C1 and check against every value of C2
         for e1 in c1:
-            print(e1)
             for e2 in c2:
-                print(e2)
                 if not self.vcl.compatible(e1, e2, G.threshold):
                     return False
 

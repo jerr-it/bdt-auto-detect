@@ -78,8 +78,6 @@ class PatternCountCache:
             for pattern in column_unique:
                 #self.cmk.add(pattern1)
 
-                # if "LuLuLuLuLuLuLuLu" in pattern1:
-                #     print(pattern1)
                 self.dict[pattern] = self.dict.get(pattern, 0) + 1
 
             for combo in unique_tuples:
@@ -97,7 +95,6 @@ class ValueColumnList:
 
     def single_probability(self, value):
         occurrences = self.cache.pattern_occurrences(value)
-        print(occurrences)
 
         return occurrences / self.cache.total_length()
 
