@@ -66,7 +66,7 @@ class TestSet:
         while tuples_generated < size:
             C = self.columns.sample_column()
             for i in range(samples_per_iteration):
-                result.append((C.sample(), C.sample(), Label.POSITIVE))
+                result.append((C.sample().to_numpy()[0], C.sample().to_numpy()[0], Label.POSITIVE))
                 tuples_generated += 1
 
         return result
@@ -88,13 +88,13 @@ class TestSet:
 
             # print("1")
 
-            if not self.is_compatible(C1, C2):
+            if self.is_compatible(C1, C2):
                 continue
 
             # print("2")
 
             for i in range(samples_per_iteration):
-                result.append((C1.sample(), C2.sample(), Label.NEGATIVE))
+                result.append((C1.sample(1).to_numpy()[0], C2.sample(1).to_numpy()[0], Label.NEGATIVE))
                 tuples_generated += 1
 
         return result
@@ -112,9 +112,12 @@ class TestSet:
         """
         Used to check if two columns are compatible.
         """
+        # TODO only take one random value from C1 and check against every value of C2
         for e1 in c1:
+            print(e1)
             for e2 in c2:
-                if not self.vcl.compatible(G.convert(e1), G.convert(e2), G.threshold):
+                print(e2)
+                if not self.vcl.compatible(e1, e2, G.threshold):
                     return False
 
         return True
