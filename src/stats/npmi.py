@@ -45,16 +45,16 @@ class PatternCountCache:
         """
         Returns the count of a pattern.
         """
-        return self.dict[pattern]
-        # return self.cmk.query(pattern)
+        # return self.dict[pattern]
+        return self.cmk.query(pattern)
 
     def pattern_pair_occurrences(self, pattern1: str, pattern2: str) -> int:
         """
         Return the count of a pattern pair.
         """
         key = "Ä".join(sorted([pattern1, pattern2]))
-        return self.dict[key] if key in self.dict else 0
-        # return self.cmk.query(key)
+        # return self.dict[key] if key in self.dict else 0
+        return self.cmk.query(key)
 
     def total_length(self) -> int:
         """
@@ -76,14 +76,14 @@ class PatternCountCache:
             unique_tuples = itertools.combinations(column_unique, 2)
 
             for pattern in column_unique:
-                #self.cmk.add(pattern1)
+                self.cmk.add(pattern)
 
-                self.dict[pattern] = self.dict.get(pattern, 0) + 1
+                # self.dict[pattern] = self.dict.get(pattern, 0) + 1
 
             for combo in unique_tuples:
                 key = "\0".join(sorted(combo))
-                self.dict[key] = self.dict.get(key, 0) + 1
-                # self.cmk.add(key)
+                # self.dict[key] = self.dict.get(key, 0) + 1
+                self.cmk.add(key)
 
 
 class ValueColumnList:
