@@ -1,5 +1,4 @@
 # https://github.com/21zhouyun/CountMinSketch/blob/master/countminsketch.py
-
 import numpy as np
 
 
@@ -7,12 +6,14 @@ class CountMinSketch(object):
     """
     A non GPU implementation of the count min sketch algorithm.
     """
+
     def __init__(self, d, w, hash_functions, M=None):
         self.d = d
         self.w = w
         self.hash_functions = hash_functions
         if len(hash_functions) != d:
-            raise ValueError("The number of hash functions must match match the depth. (%s, %s)" % (d, len(hash_functions)))
+            raise ValueError(
+                "The number of hash functions must match match the depth. (%s, %s)" % (d, len(hash_functions)))
         if M is None:
             self.M = np.zeros([d, w], dtype=np.int32)
         else:
@@ -27,3 +28,9 @@ class CountMinSketch(object):
 
     def get_matrix(self):
         return self.M
+
+    def memory_usage(self) -> int:
+        """
+        Memory usage in bytes.
+        """
+        return self.d * self.w * np.dtype(np.int32).itemsize

@@ -3,9 +3,12 @@ This module contains the necessary functions to generalize
 values into patterns and calculate the NPMI score of patterns.
 """
 import math
+
+import numpy as np
 import pandas as pd
 import itertools
 
+from src.data_gen.training_data_generation import Label
 from src.stats.language import Language
 from src.utils.hash_factory import hash_function
 from src.utils.count_min_sketch import CountMinSketch
@@ -29,7 +32,7 @@ class PatternCountCache:
     This class is used to compute and cache the count of patterns in all given columns.
     """
 
-    def __init__(self):
+    def __init__(self, language: Language):
         self.column_count = 0
 
         # TODO calculate
@@ -40,6 +43,7 @@ class PatternCountCache:
         self.cmk = CountMinSketch(depth, width, hash_functions)
 
         self.dict = {}
+        self.language = language
 
     def pattern_occurrences(self, pattern: str) -> int:
         """
@@ -62,12 +66,12 @@ class PatternCountCache:
         """
         return self.column_count
 
-    def add_data(self, df: pd.DataFrame, language: Language) -> None:
+    def add_data(self, df: pd.DataFrame) -> None:
         """
         Computes the count of all patterns in the given data and caches the result.
         # TODO complete pair calc
         """
-        converted = convert_to_pattern(df, language)
+        converted = convert_to_pattern(df, self.language)
         self.column_count += df.shape[1]
 
         for column in converted:
@@ -86,7 +90,7 @@ class PatternCountCache:
                 self.cmk.add(key)
 
 
-class ValueColumnList:
+class Scoring:
     def __init__(self, cache: PatternCountCache):
         if not isinstance(cache, PatternCountCache):
             raise ValueError("Cache must be of type PatternCountCache")
@@ -147,3 +151,25 @@ class ValueColumnList:
 def safe_log10(value):
     if value == 0: return float("-inf")
     return math.log10(value)
+
+
+def st_aggregate(training_set: list[tuple[str, str, Label]], scoring: Scoring, min_precision: float) -> (float, set, set):
+    scores = [(scoring.npmi(training_sample[0], training_sample[1]), training_sample) for training_sample in training_set]
+    for threshold in np.arange(-1.0, 1.1, 0.1):
+        h_plus = set()
+        h_minus = set()
+
+        for score in scores:
+            score, training_smpl = score
+            if score < threshold:
+                if training_smpl[2] == Label.POSITIVE:
+                    h_plus.add(training_smpl)
+                else:
+                    h_minus.add(training_smpl)
+
+        precision = len(h_minus) / (len(h_minus) + len(h_plus))
+
+        if precision >= min_precision:
+            return threshold, h_minus, h_plus
+
+    raise Exception("No threshold found")

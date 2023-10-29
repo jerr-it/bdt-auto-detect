@@ -1,16 +1,18 @@
-import glob
+import concurrent.futures
 import os
 
 import pandas as pd
+from src.data_gen.training_data_generation import TrainingSet
+from concurrent.futures import ProcessPoolExecutor
 
-from src.data_gen.training_data_generation import TestSet
+WORKERS = 10
 
 path = os.path.join(os.path.curdir, "248", "WDC", "scsv", "248")
-
+TEST_SET_SIZE = 10000
 dataframes = []
-filenames = os.listdir(path)
 
-for index, filename in enumerate(filenames):
+
+def generated_df(filename):
     df = pd.read_csv(os.path.join(path, filename), header=0, dtype=object)
 
     # iterate over all columns, and remove column if the first value has more than 15 characters
@@ -22,14 +24,35 @@ for index, filename in enumerate(filenames):
             df = df.drop(col, axis=1)
 
     df = df.dropna(axis=1, how="all")
-    dataframes.append(df)
+    return df
 
-    print("Reading files... " + "{:.2f}".format(index / len(filenames) * 100) + "%")
 
-print("Generating test set...")
-test_set = TestSet(dataframes)
-gen_test = test_set.generate_test_set(10000)
+count = 0
+with ProcessPoolExecutor(max_workers=WORKERS) as executor:
+    futures = [executor.submit(generated_df, filename) for filename in os.listdir(path)]
+    for future in concurrent.futures.as_completed(futures):
+        count += 1
+        print(count)
+        dataframes.append(future.result())
 
-for t in gen_test:
-    print(t)
-    print("_________")
+
+# Split dataframes array into WORKERS chunks
+def chunks(lst, n):
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
+
+
+def gen_test_set(dframes):
+    test_set = TrainingSet(dframes)
+    return test_set.generate_training_set(TEST_SET_SIZE)
+
+
+complete_test_set = []
+with ProcessPoolExecutor(max_workers=WORKERS) as executor:
+    futures = [executor.submit(gen_test_set, chunk) for chunk in chunks(dataframes, WORKERS)]
+
+    for future in concurrent.futures.as_completed(futures):
+        complete_test_set.extend(future.result())
+
+
+print(complete_test_set)

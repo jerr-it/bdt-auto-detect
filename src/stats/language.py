@@ -11,6 +11,11 @@ class Language:
     def __init__(self, pattern_map: dict[Callable, Callable], threshold=0.0):
         self.pattern_map = pattern_map
         self.threshold = threshold
+        self.h_minus = set()
+        self.h_plus = set()
+
+    def __hash__(self):
+        hash((self.pattern_map, self.threshold))
 
     def rle(self, value: str) -> str:
         """
@@ -54,7 +59,7 @@ H = {
 }
 
 # L is the set of candidate languages
-L = []
+L: list[Language] = []
 for candidate in itertools.product(*H.values()):
     L.append(Language(dict(zip(H.keys(), candidate))))
 

@@ -1,7 +1,7 @@
 import pandas as pd
 import unittest
 
-from src.stats.npmi import ValueColumnList
+from src.stats.npmi import Scoring
 
 
 class TestNPMI(unittest.TestCase):
@@ -13,8 +13,8 @@ class TestNPMI(unittest.TestCase):
 
         data2 = [[1, 2, 1, 2, 1],
                  [2, 2, 1, 2, 2]]
-        value_column_list_df = ValueColumnList(df)
-        value_column_list_list = ValueColumnList(data2)
+        value_column_list_df = Scoring(df)
+        value_column_list_list = Scoring(data2)
 
         # Should be compatible
         # print(value_column_list_df.compatible(1, 2, -0.5))
