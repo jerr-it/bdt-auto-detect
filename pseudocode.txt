@@ -1,0 +1,20 @@
+G = {}
+curr_size = 0
+L_c = set of candidate languages
+
+while L_c is not empty:
+    L_c_dash = set of languages from L_c, which still fit in the memory budget
+
+    L* = best of L_i: for every L_i of L_c_dash:
+        subtrahend = for every L_j of G: Union Lj.H-
+        minuend = for every L_j of G: Union Lj.H- u L_i.H-
+
+        score = (minuend - subtrahend) / size(L_i)
+
+    Add L* to G
+    curr_size += size(L*)
+    Remove L* from L_c
+
+L_k = single best language from L
+
+return G if it is better than L_k, else return L_k
