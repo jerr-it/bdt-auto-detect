@@ -27,6 +27,9 @@ class AutoDetect:
                 if size + curr_size > self.memory_budget: continue
                 Lc_dash.append(language)
 
+            if len(Lc_dash) == 0:
+                break
+
             unionized = set()
             for L_j in G_select:
                 unionized = unionized.union(L_j.h_minus)
@@ -42,6 +45,7 @@ class AutoDetect:
                 minuend = len(unionized)
                 size = self.trainings_set.caches[L_i].cmk.memory_usage()
                 score = (minuend - subtrahend) / size
+                print(score)
                 if score > best_score:
                     best_score = score
                     best_language = L_i

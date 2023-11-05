@@ -98,7 +98,7 @@ class TrainingSet:
         while tuples_generated < size:
             original = self.columns.sample_column()
             for i in range(samples_per_iteration):
-                result.append((str(C.sample().to_numpy()[0]), str(C.sample().to_numpy()[0]), Label.POSITIVE))
+                result.append((str(original.sample().to_numpy()[0]), str(original.sample().to_numpy()[0]), Label.POSITIVE))
                 tuples_generated += 1
 
         return result
