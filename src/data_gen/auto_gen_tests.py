@@ -7,12 +7,14 @@ from concurrent.futures import ProcessPoolExecutor
 
 WORKERS = 10
 
-#path = os.path.join(os.path.curdir, "248", "WDC", "scsv", "248")
-#TEST_SET_SIZE = 10000
-#dataframes = []
+
+# path = os.path.join(os.path.curdir, "248", "WDC", "scsv", "248")
+# TEST_SET_SIZE = 10000
+# dataframes = []
 
 
 def generated_df(path_to_file):
+    print(path_to_file)
     df = pd.read_csv(os.path.join(path_to_file), header=0, dtype=object)
 
     # iterate over all columns, and remove column if the first value has more than 15 characters
@@ -23,7 +25,8 @@ def generated_df(path_to_file):
         if len(str(df[col].iloc[0])) > 15:
             df = df.drop(col, axis=1)
 
-    df = df.dropna(axis=1, how="all")
+    df = df.dropna(axis=1, how="any")
+    df = df.astype(str)
     return df
 
 
@@ -31,13 +34,11 @@ def generate_df_for_directory(path, workers=10):
     dataframes = []
     count = 0
     with ProcessPoolExecutor(max_workers=workers) as executor:
-        futures = [executor.submit(generated_df, os.path.join(path, filename)) for filename in os.listdir(path)]
+        futures = [executor.submit(generated_df, os.path.join(path, filename)) for filename in os.listdir(path)[0:100]]
         for future in concurrent.futures.as_completed(futures):
             count += 1
-            print(count)
+            #print(count)
             dataframes.append(future.result())
-            if count >= 2:
-                break
 
     return dataframes
 
@@ -47,14 +48,13 @@ def chunks(lst, n):
     for i in range(0, len(lst), n):
         yield lst[i:i + n]
 
-
 # def gen_test_set(dframes):
 #     test_set = TrainingSet(dframes)
 #     return test_set.generate_training_set(TEST_SET_SIZE)
 
 
-#complete_test_set = []
-#with ProcessPoolExecutor(max_workers=WORKERS) as executor:
+# complete_test_set = []
+# with ProcessPoolExecutor(max_workers=WORKERS) as executor:
 #    futures = [executor.submit(gen_test_set, chunk) for chunk in chunks(dataframes, WORKERS)]
 #
 #     for future in concurrent.futures.as_completed(futures):

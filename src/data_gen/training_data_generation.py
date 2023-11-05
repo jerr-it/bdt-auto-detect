@@ -96,7 +96,7 @@ class TrainingSet:
         result = []
 
         while tuples_generated < size:
-            C = self.columns.sample_column().copy().apply(G.convert)
+            original = self.columns.sample_column()
             for i in range(samples_per_iteration):
                 result.append((str(C.sample().to_numpy()[0]), str(C.sample().to_numpy()[0]), Label.POSITIVE))
                 tuples_generated += 1
@@ -112,8 +112,10 @@ class TrainingSet:
         result = []
 
         while tuples_generated < size:
-            C1 = self.columns.sample_column().apply(G.convert)
-            C2 = self.columns.sample_column().apply(G.convert)
+            o1 = self.columns.sample_column()
+            C1 = o1.copy().apply(G.convert)
+            o2 = self.columns.sample_column()
+            C2 = o2.copy().apply(G.convert)
 
             if C1.equals(C2):
                 continue
@@ -122,7 +124,7 @@ class TrainingSet:
                 continue
 
             for i in range(samples_per_iteration):
-                result.append((str(C1.sample(1).to_numpy()[0]), str(C2.sample(1).to_numpy()[0]), Label.NEGATIVE))
+                result.append((str(o1.sample(1).to_numpy()[0]), str(o2.sample(1).to_numpy()[0]), Label.NEGATIVE))
                 tuples_generated += 1
 
         return result

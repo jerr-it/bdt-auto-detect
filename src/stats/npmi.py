@@ -50,7 +50,6 @@ class PatternCountCache:
         """
         Returns the count of a pattern.
         """
-        print(self.dict)
         return self.dict[pattern]
         # return self.cmk.query(pattern)
 
@@ -83,7 +82,6 @@ class PatternCountCache:
 
             for pattern in column_unique:
                 # self.cmk.add(pattern)
-
                 self.dict[pattern] = self.dict.get(pattern, 0) + 1
 
             for combo in unique_tuples:
@@ -159,9 +157,25 @@ def safe_log10(value):
 
 
 def st_aggregate(training_set: list[tuple[str, str, Label]], scoring: Scoring, min_precision: float) -> (float, set, set):
-    scores = [(scoring.npmi(training_sample[0], training_sample[1]), training_sample) for training_sample in training_set]
+    converted_samples = [
+        (
+            scoring.cache.language.convert(training_sample[0]),
+            scoring.cache.language.convert(training_sample[1]),
+            training_sample[2]
+        ) for training_sample in training_set
+    ]
+
+    scores = [
+        (
+            scoring.npmi(training_sample[0],
+                         training_sample[1]),
+            training_sample
+        ) for training_sample in converted_samples
+    ]
+
     #print(scores)
-    for threshold in np.arange(-1.0, 1.1, 0.1):
+
+    for threshold in np.arange(1.0, -1.1, -0.1):
         h_plus = set()
         h_minus = set()
 

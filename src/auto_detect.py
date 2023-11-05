@@ -12,6 +12,8 @@ class AutoDetect:
             scoring = trainings_set.scorings[language]
             language.threshold, language.h_minus, language.h_plus = st_aggregate(trainings_set.tuples, scoring, min_precision)
 
+        self.best_languages: set[Language] = set()
+
     def train(self) -> set[Language]:
         G_select: set[Language] = set()
         curr_size = 0
@@ -43,6 +45,7 @@ class AutoDetect:
                 if score > best_score:
                     best_score = score
                     best_language = L_i
+                    print(best_language)
 
             L_star = best_language
 
@@ -65,6 +68,11 @@ class AutoDetect:
         total_score = len(unionized)
 
         if total_score >= H_k_minus:
+            self.best_languages = G_select
             return G_select
         else:
+            self.best_languages = {L_k}
             return {L_k}
+
+    def predict(self):
+        pass

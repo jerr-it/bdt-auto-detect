@@ -9,3 +9,6 @@ dataframes = generate_df_for_directory(path, workers=10)
 training_set = TrainingSet(dataframes)
 training_set.generate_training_set(size=10000)
 autodetect = AutoDetect(training_set, min_precision=0.75, memory_budget=1e9)
+autodetect.train()
+for l in autodetect.best_languages:
+    print(l, "\n------------\n")

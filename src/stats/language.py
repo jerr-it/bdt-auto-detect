@@ -17,7 +17,10 @@ class Language:
         self.h_plus = set()
 
     def __hash__(self):
-        return hash((tuple(self.pattern_map.items()), self.threshold))
+        return hash(tuple(self.pattern_map.items()))
+
+    def __str__(self):
+        return str(self.pattern_map)
 
     def rle(self, value: str) -> str:
         """
