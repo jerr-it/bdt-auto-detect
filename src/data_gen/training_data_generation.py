@@ -1,20 +1,22 @@
+from __future__ import annotations
+
+import concurrent.futures
+import pickle
 import random
+from concurrent.futures import ProcessPoolExecutor
 from enum import Enum
 from typing import Any
+import dill
+from pathos.multiprocessing import ProcessingPool as Pool
 
 import pandas as pd
 
 from src.stats.language import G
 from src.stats.npmi import Scoring, PatternCountCache
 from src.stats.language import L
+from src.utils.label import Label
 
-
-class Label(Enum):
-    """
-    Represents a label, either + or -.
-    """
-    POSITIVE = "+"
-    NEGATIVE = "-"
+MAX_WORKERS = 20
 
 
 class CleanColumns:
@@ -27,7 +29,10 @@ class CleanColumns:
             raise ValueError("Corpus must be of type list[pd.DataFrame]")
 
         # Usually verify if data is clean, but for now we assume it is clean
-        self.corpus = corpus
+        for corp in corpus:
+            print("------------------------")
+            print(corp)
+        self.corpus = [df.copy() for df in corpus]
 
     def sample_column(self) -> pd.Series:
         """
@@ -47,23 +52,40 @@ class TrainingSet:
     Represents a training set, consisting of a list of tuples (u, v, +/-).
     """
 
+    def calculate_language_cache(self, language):
+        cache = PatternCountCache(language)
+        self.caches[language] = cache
+        self.scorings[language] = Scoring(cache)
+
     def __init__(self, corpus: list[pd.DataFrame]):
         self.caches = {}
         self.scorings = {}
+        global MAX_WORKERS
 
-        for language in L:
+        for index, language in enumerate(L):
             cache = PatternCountCache(language)
             self.caches[language] = cache
             self.scorings[language] = Scoring(cache)
+            print("Progress:" + str(index / len(L)))
+
+        # with ProcessPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        #     futures = [executor.submit(self.calculate_language_cache, lang) for lang in L]
+        #
+        #     for future in concurrent.futures.as_completed(futures):
+        #         future.result()
 
         self.cache = PatternCountCache(G)
-        for df in corpus:
+        for _index, df in enumerate(corpus):
             self.cache.add_data(df)
-            for language, cache in self.caches.items():
+            for index, (language, cache) in enumerate(self.caches.items()):
                 cache.add_data(df)
+                print("Adding data... " + str(index / len(self.caches)))
+
+            print("Adding corpus... " + str(_index / len(corpus)))
 
         self.scoring = Scoring(self.cache)
         self.columns = CleanColumns(corpus)
+        self.tuples = []
 
     def generate_clean_training_set(self, size: int, samples_per_iteration=1) -> list[tuple[str, str, Label]]:
         """
@@ -74,7 +96,7 @@ class TrainingSet:
         result = []
 
         while tuples_generated < size:
-            C = self.columns.sample_column()
+            C = self.columns.sample_column().copy().apply(G.convert)
             for i in range(samples_per_iteration):
                 result.append((str(C.sample().to_numpy()[0]), str(C.sample().to_numpy()[0]), Label.POSITIVE))
                 tuples_generated += 1
@@ -90,8 +112,8 @@ class TrainingSet:
         result = []
 
         while tuples_generated < size:
-            C1 = self.columns.sample_column()
-            C2 = self.columns.sample_column()
+            C1 = self.columns.sample_column().apply(G.convert)
+            C2 = self.columns.sample_column().apply(G.convert)
 
             if C1.equals(C2):
                 continue
@@ -112,7 +134,8 @@ class TrainingSet:
         """
         clean_test_set = self.generate_clean_training_set(size // 2)
         dirty_test_set = self.generate_dirty_training_set(size // 2)
-        return clean_test_set + dirty_test_set
+        self.tuples = clean_test_set + dirty_test_set
+        return self.tuples
 
     def is_compatible(self, c1: pd.Series, c2: pd.Series) -> bool:
         """
@@ -126,3 +149,12 @@ class TrainingSet:
 
         return True
 
+    # TODO change to dill, pickle wont pickle
+    def save(self, filename: str):
+        with open(f"{filename}.pkl", "wb") as f:
+            pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)
+
+    @staticmethod
+    def load(filename: str) -> TrainingSet:
+        with open(f"{filename}.pkl", "rb") as f:
+            return pickle.load(f)

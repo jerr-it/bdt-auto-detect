@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import itertools
 
-from src.data_gen.training_data_generation import Label
+from src.utils.label import Label
 from src.stats.language import Language
 from src.utils.hash_factory import hash_function
 from src.utils.count_min_sketch import CountMinSketch
@@ -20,11 +20,12 @@ def convert_to_pattern(df: pd.DataFrame, language: Language) -> pd.DataFrame:
     characters into classes (digits, upper and lower case letters) and leaving all other characters as they are.
     (Also known as G() in the paper)
     """
-    for column in df:
-        df[column] = df[column].astype(str)
-        df[column] = df[column].apply(language.convert)
+    dfcopy = df.copy()
+    for column in dfcopy:
+        dfcopy[column] = dfcopy[column].astype(str)
+        dfcopy[column] = dfcopy[column].apply(language.convert)
 
-    return df
+    return dfcopy
 
 
 class PatternCountCache:
@@ -49,16 +50,17 @@ class PatternCountCache:
         """
         Returns the count of a pattern.
         """
-        # return self.dict[pattern]
-        return self.cmk.query(pattern)
+        print(self.dict)
+        return self.dict[pattern]
+        # return self.cmk.query(pattern)
 
     def pattern_pair_occurrences(self, pattern1: str, pattern2: str) -> int:
         """
         Return the count of a pattern pair.
         """
         key = "Ä".join(sorted([pattern1, pattern2]))
-        # return self.dict[key] if key in self.dict else 0
-        return self.cmk.query(key)
+        return self.dict[key] if key in self.dict else 0
+        # return self.cmk.query(key)
 
     def total_length(self) -> int:
         """
@@ -75,19 +77,19 @@ class PatternCountCache:
         self.column_count += df.shape[1]
 
         for column in converted:
-            column_unique = df[column].unique()
+            column_unique = converted[column].unique()
 
             unique_tuples = itertools.combinations(column_unique, 2)
 
             for pattern in column_unique:
-                self.cmk.add(pattern)
+                # self.cmk.add(pattern)
 
-                # self.dict[pattern] = self.dict.get(pattern, 0) + 1
+                self.dict[pattern] = self.dict.get(pattern, 0) + 1
 
             for combo in unique_tuples:
-                key = "\0".join(sorted(combo))
-                # self.dict[key] = self.dict.get(key, 0) + 1
-                self.cmk.add(key)
+                key = "Ä".join(sorted(combo))
+                self.dict[key] = self.dict.get(key, 0) + 1
+                # self.cmk.add(key)
 
 
 class Scoring:
@@ -133,7 +135,10 @@ class Scoring:
         denominator = -safe_log10(self.paired_probability(value1, value2))
         if denominator == 0: return 1
 
-        return self.pmi(value1, value2) / denominator
+        pmi = self.pmi(value1, value2)
+        if pmi == float("-inf"): return pmi
+
+        return pmi / denominator
 
     def smoothed_npmi(self, value1, value2, smoothing=0.2):
         denominator = -safe_log10(self.smoothed_probability(value1, value2, smoothing))
@@ -155,21 +160,24 @@ def safe_log10(value):
 
 def st_aggregate(training_set: list[tuple[str, str, Label]], scoring: Scoring, min_precision: float) -> (float, set, set):
     scores = [(scoring.npmi(training_sample[0], training_sample[1]), training_sample) for training_sample in training_set]
+    #print(scores)
     for threshold in np.arange(-1.0, 1.1, 0.1):
         h_plus = set()
         h_minus = set()
 
         for score in scores:
             score, training_smpl = score
-            if score < threshold:
+            if score <= threshold:
                 if training_smpl[2] == Label.POSITIVE:
                     h_plus.add(training_smpl)
                 else:
                     h_minus.add(training_smpl)
 
+        print(f"checking threshold {threshold}")
         precision = len(h_minus) / (len(h_minus) + len(h_plus))
 
         if precision >= min_precision:
+            print("found threshold")
             return threshold, h_minus, h_plus
 
     raise Exception("No threshold found")

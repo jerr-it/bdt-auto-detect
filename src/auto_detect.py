@@ -4,14 +4,13 @@ from src.stats.npmi import st_aggregate
 
 
 class AutoDetect:
-    def __init__(self, trainings_set: TrainingSet, size: int, min_precision: float, memory_budget: int = 10e9):
-        training_data = trainings_set.generate_training_set(size)
+    def __init__(self, trainings_set: TrainingSet, min_precision: float, memory_budget: int = 10e9):
         self.trainings_set = trainings_set
         self.memory_budget = memory_budget
 
         for language in L:
             scoring = trainings_set.scorings[language]
-            language.threshold, language.h_minus, language.h_plus = st_aggregate(training_data, scoring, min_precision)
+            language.threshold, language.h_minus, language.h_plus = st_aggregate(trainings_set.tuples, scoring, min_precision)
 
     def train(self) -> set[Language]:
         G_select: set[Language] = set()
