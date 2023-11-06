@@ -1,13 +1,7 @@
 from __future__ import annotations
 
-import concurrent.futures
-import pickle
 import random
-from concurrent.futures import ProcessPoolExecutor
-from enum import Enum
-from typing import Any
 import dill
-from pathos.multiprocessing import ProcessingPool as Pool
 
 import pandas as pd
 
@@ -154,9 +148,9 @@ class TrainingSet:
     # TODO change to dill, pickle wont pickle
     def save(self, filename: str):
         with open(f"{filename}.pkl", "wb") as f:
-            pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)
+            dill.dump(self, f)
 
     @staticmethod
     def load(filename: str) -> TrainingSet:
         with open(f"{filename}.pkl", "rb") as f:
-            return pickle.load(f)
+            return dill.load(f)
