@@ -1,9 +1,8 @@
 import concurrent.futures
 import os
+from concurrent.futures import ProcessPoolExecutor
 
 import pandas as pd
-from src.data_gen.training_data_generation import TrainingSet
-from concurrent.futures import ProcessPoolExecutor
 
 WORKERS = 10
 

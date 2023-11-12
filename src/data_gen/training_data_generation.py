@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import os.path
 import random
 import dill
 
 import pandas as pd
+
+from src.data_gen.auto_gen_tests import generate_df_for_directory
 
 from src.stats.language import G
 from src.stats.npmi import Scoring, PatternCountCache
@@ -61,7 +64,7 @@ class TrainingSet:
             cache = PatternCountCache(language)
             self.caches[language] = cache
             self.scorings[language] = Scoring(cache)
-            print("Progress:" + str(index / len(L)))
+            #print("Progress:" + str(index / len(L)))
 
         # with ProcessPoolExecutor(max_workers=MAX_WORKERS) as executor:
         #     futures = [executor.submit(self.calculate_language_cache, lang) for lang in L]
@@ -152,6 +155,16 @@ class TrainingSet:
             dill.dump(self, f)
 
     @staticmethod
-    def load(filename: str) -> TrainingSet:
-        with open(f"{filename}.pkl", "rb") as f:
-            return dill.load(f)
+    def create_or_load(filename: str, data_path: str | None, training_set_size: int | None) -> TrainingSet:
+        if os.path.isfile(f"{filename}.pkl"):
+            with open(f"{filename}.pkl", "rb") as f:
+                return dill.load(f)
+
+        if not data_path or not training_set_size:
+            raise Exception("Incorrect arguments")
+
+        dataframes = generate_df_for_directory(data_path, workers=10)
+        training_set = TrainingSet(dataframes)
+        training_set.generate_training_set(training_set_size)
+        training_set.save(filename)
+        return training_set
