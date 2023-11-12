@@ -50,15 +50,23 @@ class PatternCountCache:
         """
         Returns the count of a pattern.
         """
-        return self.dict[pattern]
+        try:
+            return self.dict[pattern]
+        except KeyError:
+            return 0
+            #raise KeyError(f"Pattern {pattern} not found in cache")
         # return self.cmk.query(pattern)
 
     def pattern_pair_occurrences(self, pattern1: str, pattern2: str) -> int:
         """
         Return the count of a pattern pair.
         """
-        key = "Ä".join(sorted([pattern1, pattern2]))
-        return self.dict[key] if key in self.dict else 0
+        try:
+            key = "Ä".join(sorted([pattern1, pattern2]))
+            return self.dict[key] if key in self.dict else 0
+        except KeyError:
+            return 0
+            #raise KeyError(f"Pattern pair {pattern1} and {pattern2} not found in cache")
         # return self.cmk.query(key)
 
     def total_length(self) -> int:
@@ -125,8 +133,11 @@ class Scoring:
         return safe_log10(ratio)
 
     def smoothed_pmi(self, value1, value2, smoothing=0.2):
-        ratio = self.smoothed_probability(value1, value2, smoothing) / (
-                self.single_probability(value1) * self.single_probability(value2))
+        denominator = self.single_probability(value1) * self.single_probability(value2)
+
+        if denominator == 0: return float("-inf")
+
+        ratio = self.smoothed_probability(value1, value2, smoothing) / denominator
         return safe_log10(ratio)
 
     def npmi(self, value1, value2):
@@ -134,7 +145,7 @@ class Scoring:
         if denominator == 0: return 1
 
         pmi = self.pmi(value1, value2)
-        if pmi == float("-inf"): return pmi
+        if pmi == float("-inf"): return -1
 
         return pmi / denominator
 
@@ -142,7 +153,10 @@ class Scoring:
         denominator = -safe_log10(self.smoothed_probability(value1, value2, smoothing))
         if denominator == 0: return 1
 
-        return self.smoothed_pmi(value1, value2, smoothing) / denominator
+        smoothed_pmi = self.smoothed_pmi(value1, value2, smoothing)
+        if smoothed_pmi == float("-inf"): return -1
+
+        return smoothed_pmi / denominator
 
     def compatible(self, value1, value2, threshold):
         return self.npmi(value1, value2) > threshold
@@ -167,7 +181,7 @@ def st_aggregate(training_set: list[tuple[str, str, Label]], scoring: Scoring, m
 
     scores = [
         (
-            scoring.npmi(training_sample[0],
+            scoring.smoothed_npmi(training_sample[0],
                          training_sample[1]),
             training_sample
         ) for training_sample in converted_samples
@@ -175,7 +189,7 @@ def st_aggregate(training_set: list[tuple[str, str, Label]], scoring: Scoring, m
 
     #print(scores)
 
-    for threshold in np.arange(1.0, -1.1, -0.1):
+    for threshold in np.arange(-1.0, 1.1, 0.01):
         h_plus = set()
         h_minus = set()
 
@@ -187,11 +201,11 @@ def st_aggregate(training_set: list[tuple[str, str, Label]], scoring: Scoring, m
                 else:
                     h_minus.add(training_smpl)
 
-        print(f"checking threshold {threshold}")
+        if len(h_minus) + len(h_plus) == 0: continue
         precision = len(h_minus) / (len(h_minus) + len(h_plus))
 
         if precision >= min_precision:
             print("found threshold")
             return threshold, h_minus, h_plus
 
-    raise Exception("No threshold found")
+    raise SyntaxError("No threshold found")

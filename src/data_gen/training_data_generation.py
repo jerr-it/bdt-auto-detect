@@ -24,8 +24,9 @@ class CleanColumns:
 
         # Usually verify if data is clean, but for now we assume it is clean
         for corp in corpus:
-            print("------------------------")
-            print(corp)
+            ...
+            #print("------------------------")
+            #print(corp)
         self.corpus = [df.copy() for df in corpus]
 
     def sample_column(self) -> pd.Series:
@@ -73,9 +74,9 @@ class TrainingSet:
             self.cache.add_data(df)
             for index, (language, cache) in enumerate(self.caches.items()):
                 cache.add_data(df)
-                print("Adding data... " + str(index / len(self.caches)))
+                #print("Adding data... " + str(index / len(self.caches)))
 
-            print("Adding corpus... " + str(_index / len(corpus)))
+            #print("Adding corpus... " + str(_index / len(corpus)))
 
         self.scoring = Scoring(self.cache)
         self.columns = CleanColumns(corpus)
@@ -140,7 +141,7 @@ class TrainingSet:
         # TODO only take one random value from C1 and check against every value of C2
         for e1 in c1:
             for e2 in c2:
-                if not self.scoring.compatible(e1, e2, G.threshold):
+                if not self.scoring.smoothed_compatible(e1, e2, G.threshold):
                     return False
 
         return True

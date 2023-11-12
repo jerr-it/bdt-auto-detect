@@ -12,3 +12,9 @@ autodetect = AutoDetect(training_set, min_precision=0.75, memory_budget=1e9)
 autodetect.train()
 for l in autodetect.best_languages:
     print(l, "\n------------\n")
+
+try:
+    result = autodetect.predict_nonsense("2034/08/01", "2002-04-12")
+    print(result)
+except KeyError as e:
+    print(e)
