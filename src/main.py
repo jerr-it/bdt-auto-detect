@@ -1,7 +1,6 @@
 import argparse
 import os.path
 
-from src.auto_detect import AutoDetect
 from src.data_gen.training_data_generation import TrainingSet
 
 parser = argparse.ArgumentParser(description="BDT Auto-Detect")
@@ -16,9 +15,6 @@ args = parser.parse_args()
 print(os.path.abspath(os.path.curdir))
 
 training_set = TrainingSet.create_or_load(args.model_path, args.train_data_path, args.training_set_size)
-
-autodetect = AutoDetect(training_set, args.min_precision, args.memory_budget)
-autodetect.train()
 
 if args.predict1 is None or args.predict2 is None:
     print("No prediction given. Exiting.")
