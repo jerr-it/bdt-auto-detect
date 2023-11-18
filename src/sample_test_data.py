@@ -1,20 +1,26 @@
 import os
 import random
+
+import dill
 import pandas as pd
 import argparse
 
-COLUMN_SAMPLE_TARGET = 10000
-#SAMPLE_DIRECTORY = "~/sampled_columns/"
+COLUMN_SAMPLE_TARGET = 1000
+
+
+# SAMPLE_DIRECTORY = "~/sampled_columns/"
 
 
 def sample_colums(base_path: str, sample_directory: str):
     folders = os.listdir(base_path)
     sampled_columns = 0
+    df_list = []
 
     while sampled_columns < COLUMN_SAMPLE_TARGET:
         folder = random.choice(folders)
 
-        files = [f for f in os.listdir(os.path.join(base_path, folder)) if os.path.isfile(os.path.join(base_path, folder, f))]
+        files = [f for f in os.listdir(os.path.join(base_path, folder)) if
+                 os.path.isfile(os.path.join(base_path, folder, f))]
         file = random.choice(files)
 
         df = pd.read_csv(os.path.join(base_path, folder, file))
@@ -26,11 +32,13 @@ def sample_colums(base_path: str, sample_directory: str):
 
             if len(str(df[col].iloc[0])) > 15:
                 df = df.drop(col, axis=1)
-        
+
         sampled_columns += df.shape[1]
         print(f"Sampled {df.shape[1]} columns. Total: {sampled_columns} of {COLUMN_SAMPLE_TARGET}")
-
-        df.to_csv(os.path.join(sample_directory, folder + "_" + file), index=False)
+        df_list.append(df)
+    
+    with open("df_list.pkl", "wb") as f:
+        dill.dump(df_list, f)
 
 
 if __name__ == "__main__":
