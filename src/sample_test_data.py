@@ -18,10 +18,13 @@ def sample_colums(base_path: str, sample_directory: str):
 
     while sampled_columns < COLUMN_SAMPLE_TARGET:
         folder = random.choice(folders)
+        files = os.listdir(os.path.join(base_path, folder))
+        if len(files) == 0:
+            continue
 
-        files = [f for f in os.listdir(os.path.join(base_path, folder)) if
-                 os.path.isfile(os.path.join(base_path, folder, f))]
         file = random.choice(files)
+        if not file.endswith(".csv"):
+            continue
 
         df = pd.read_csv(os.path.join(base_path, folder, file))
 
@@ -36,7 +39,7 @@ def sample_colums(base_path: str, sample_directory: str):
         sampled_columns += df.shape[1]
         print(f"Sampled {df.shape[1]} columns. Total: {sampled_columns} of {COLUMN_SAMPLE_TARGET}")
         df_list.append(df)
-    
+
     with open("df_list.pkl", "wb") as f:
         dill.dump(df_list, f)
 
