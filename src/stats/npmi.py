@@ -11,7 +11,8 @@ import itertools
 from src.utils.label import Label
 from src.stats.language import Language
 from src.utils.hash_factory import hash_function
-from src.utils.count_min_sketch import CountMinSketch
+#from src.utils.count_min_sketch import CountMinSketch
+from probstructs import CountMinSketch
 
 
 def convert_to_pattern(df: pd.DataFrame, language: Language) -> pd.DataFrame:
@@ -35,13 +36,9 @@ class PatternCountCache:
 
     def __init__(self, language: Language):
         self.column_count = 0
+        self.memory_usage = 2**22 * 10 * np.dtype(np.int32).itemsize
 
-        # TODO calculate
-        depth = 8
-        width = 2 ** 22
-
-        hash_functions = [hash_function(i) for i in range(depth)]
-        self.cmk = CountMinSketch(depth, width, hash_functions)
+        self.cmk = CountMinSketch(width=2**22, depth=10)
 
         self.dict = {}
         self.language = language
@@ -51,11 +48,11 @@ class PatternCountCache:
         Returns the count of a pattern.
         """
         try:
-            return self.dict[pattern]
+            return self.cmk.get(pattern)
+            # return self.dict[pattern]
         except KeyError:
             return 0
-            #raise KeyError(f"Pattern {pattern} not found in cache")
-        # return self.cmk.query(pattern)
+            # raise KeyError(f"Pattern {pattern} not found in cache")
 
     def pattern_pair_occurrences(self, pattern1: str, pattern2: str) -> int:
         """
@@ -63,11 +60,11 @@ class PatternCountCache:
         """
         try:
             key = "Ä".join(sorted([pattern1, pattern2]))
-            return self.dict[key] if key in self.dict else 0
+            return self.cmk.get(key)
+            # return self.dict[key] if key in self.dict else 0
         except KeyError:
             return 0
-            #raise KeyError(f"Pattern pair {pattern1} and {pattern2} not found in cache")
-        # return self.cmk.query(key)
+            # raise KeyError(f"Pattern pair {pattern1} and {pattern2} not found in cache")
 
     def total_length(self) -> int:
         """
@@ -89,13 +86,13 @@ class PatternCountCache:
             unique_tuples = itertools.combinations(column_unique, 2)
 
             for pattern in column_unique:
-                # self.cmk.add(pattern)
-                self.dict[pattern] = self.dict.get(pattern, 0) + 1
+                self.cmk.inc(pattern, 1)
+                # self.dict[pattern] = self.dict.get(pattern, 0) + 1
 
             for combo in unique_tuples:
                 key = "Ä".join(sorted(combo))
-                self.dict[key] = self.dict.get(key, 0) + 1
-                # self.cmk.add(key)
+                # self.dict[key] = self.dict.get(key, 0) + 1
+                self.cmk.inc(key, 1)
 
 
 class Scoring:
@@ -170,7 +167,8 @@ def safe_log10(value):
     return math.log10(value)
 
 
-def st_aggregate(training_set: list[tuple[str, str, Label]], scoring: Scoring, min_precision: float) -> (float, set, set):
+def st_aggregate(training_set: list[tuple[str, str, Label]], scoring: Scoring, min_precision: float) -> (
+        float, set, set):
     converted_samples = [
         (
             scoring.cache.language.convert(training_sample[0]),
@@ -182,12 +180,12 @@ def st_aggregate(training_set: list[tuple[str, str, Label]], scoring: Scoring, m
     scores = [
         (
             scoring.smoothed_npmi(training_sample[0],
-                         training_sample[1]),
+                                  training_sample[1]),
             training_sample
         ) for training_sample in converted_samples
     ]
 
-    #print(scores)
+    # print(scores)
 
     for threshold in np.arange(-1.0, 1.1, 0.01):
         h_plus = set()

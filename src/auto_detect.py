@@ -30,7 +30,7 @@ class AutoDetect:
             Lc_dash = []
 
             for language in Lc:
-                size = self.trainings_set.caches[language].cmk.memory_usage()
+                size = self.trainings_set.caches[language].memory_usage
                 if size + curr_size > self.memory_budget: continue
                 Lc_dash.append(language)
 
@@ -50,7 +50,7 @@ class AutoDetect:
                     unionized = unionized.union(L_j.h_minus, L_i.h_minus)
 
                 minuend = len(unionized)
-                size = self.trainings_set.caches[L_i].cmk.memory_usage()
+                size = self.trainings_set.caches[L_i].memory_usage
                 score = (minuend - subtrahend) / size
                 #print(score)
                 if score > best_score:
@@ -61,13 +61,13 @@ class AutoDetect:
             L_star = best_language
 
             G_select.add(L_star)
-            curr_size += self.trainings_set.caches[L_star].cmk.memory_usage()
+            curr_size += self.trainings_set.caches[L_star].memory_usage
             Lc.remove(L_star)
 
         L_k = None
         H_k_minus = float("-inf")
         for L_i in L:
-            if self.trainings_set.caches[L_i].cmk.memory_usage() > self.memory_budget: continue
+            if self.trainings_set.caches[L_i].memory_usage > self.memory_budget: continue
 
             if (score := len(L_i.h_minus)) > H_k_minus:
                 H_k_minus = score
