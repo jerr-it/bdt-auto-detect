@@ -13,7 +13,6 @@ WORKERS = 10
 
 
 def generated_df(path_to_file):
-    print(path_to_file)
     df = pd.read_csv(os.path.join(path_to_file), header=0, dtype=object)
 
     # iterate over all columns, and remove column if the first value has more than 15 characters
@@ -39,6 +38,7 @@ def generate_df_for_directory(path, workers=10):
             #print(count)
             dataframes.append(future.result())
 
+    print("Finished generating dataframes")
     return dataframes
 
 

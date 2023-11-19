@@ -10,9 +10,7 @@ import itertools
 
 from src.utils.label import Label
 from src.stats.language import Language
-from src.utils.hash_factory import hash_function
-#from src.utils.count_min_sketch import CountMinSketch
-from probstructs import CountMinSketch
+from src.utils.countminsketch import CMSketch
 
 
 def convert_to_pattern(df: pd.DataFrame, language: Language) -> pd.DataFrame:
@@ -38,7 +36,7 @@ class PatternCountCache:
         self.column_count = 0
         self.memory_usage = 2**22 * 10 * np.dtype(np.int32).itemsize
 
-        self.cmk = CountMinSketch(width=2**22, depth=10)
+        self.cmk = CMSketch(str(language.__hash__()), 2*20, 10)
 
         self.dict = {}
         self.language = language

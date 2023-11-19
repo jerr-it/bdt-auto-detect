@@ -60,11 +60,12 @@ class TrainingSet:
         self.scorings = {}
         global MAX_WORKERS
 
+        print("Creating pattern count caches ...")
         for index, language in enumerate(L):
             cache = PatternCountCache(language)
             self.caches[language] = cache
             self.scorings[language] = Scoring(cache)
-            #print("Progress:" + str(index / len(L)))
+            print(f"Creating count cache for language {index} of {len(L)}")
 
         # with ProcessPoolExecutor(max_workers=MAX_WORKERS) as executor:
         #     futures = [executor.submit(self.calculate_language_cache, lang) for lang in L]
@@ -72,12 +73,13 @@ class TrainingSet:
         #     for future in concurrent.futures.as_completed(futures):
         #         future.result()
 
+        print("Adding data to pattern count caches ...")
         self.cache = PatternCountCache(G)
         for _index, df in enumerate(corpus):
+            print(f"Adding dataframe to all languages ... {_index} of {len(corpus)}")
             self.cache.add_data(df)
             for index, (language, cache) in enumerate(self.caches.items()):
                 cache.add_data(df)
-                #print("Adding data... " + str(index / len(self.caches)))
 
             #print("Adding corpus... " + str(_index / len(corpus)))
 
@@ -94,6 +96,7 @@ class TrainingSet:
         result = []
 
         while tuples_generated < size:
+            print(f"Sampling columns for clean set ... {tuples_generated} of {size}")
             original = self.columns.sample_column()
             for i in range(samples_per_iteration):
                 result.append((str(original.sample().to_numpy()[0]), str(original.sample().to_numpy()[0]), Label.POSITIVE))
@@ -110,6 +113,8 @@ class TrainingSet:
         result = []
 
         while tuples_generated < size:
+            print(f"Sampling columns for dirty set ... {tuples_generated} of {size}")
+
             o1 = self.columns.sample_column()
             C1 = o1.copy().apply(G.convert)
             o2 = self.columns.sample_column()
@@ -132,6 +137,7 @@ class TrainingSet:
         Used to generate a mixed test set consisting of T+ (clean test set) and T- (dirty test set).
         T = T+ U T-
         """
+        print("Starting to generate training set ...")
         clean_test_set = self.generate_clean_training_set(size // 2)
         dirty_test_set = self.generate_dirty_training_set(size // 2)
         self.tuples = clean_test_set + dirty_test_set
