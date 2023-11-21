@@ -16,7 +16,7 @@ parser.add_argument("--training-set", type=str, help="Skips training data genera
 
 args = parser.parse_args()
 
-if args.dataframe_pickled_path:
+if not args.dataframe_pickled_path:
     dataframes = generate_df_for_directory(args.train_data_path, workers=10)
 else:
     dataframes = dill.load(open(args.training_set, "rb"))
