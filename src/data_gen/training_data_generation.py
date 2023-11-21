@@ -62,6 +62,9 @@ class TrainingSet:
         self.scorings[language] = Scoring(cache)
 
     def __init__(self, corpus: list[pd.DataFrame]):
+        redis = Redis(host='localhost', port=6379, db=0)
+        redis.incrby("total_columns", sum([df.shape[1] for df in corpus]))
+
         self.caches = {}
         self.scorings = {}
         global MAX_WORKERS

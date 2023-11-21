@@ -8,7 +8,7 @@ from src.data_gen.training_data_generation import TrainingSet
 
 parser = argparse.ArgumentParser(description="Train Auto-Detect")
 parser.add_argument("--train_data_path", type=str, help="Path to training data")
-parser.add_argument("--training_set_size", type=int, default=100000)
+parser.add_argument("--training_set_size", type=int, default=10000)
 parser.add_argument("--min_precision", type=float, default=0.99)
 parser.add_argument("--memory_budget", type=int, default=5*10e7) # TODO: Use fraction of hosts available memory
 parser.add_argument("--training-set", type=str, help="Skips training data generation and loads training set from pickled file")

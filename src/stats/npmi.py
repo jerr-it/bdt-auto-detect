@@ -37,7 +37,7 @@ class PatternCountCache:
         self.redis = redis.Redis(host='localhost', port=6379, db=0)
         self.cmk = self.redis.cms()
         if not skip_db_init:
-            self.cmk.initbyprob(str(language.__hash__()), 0.0001, 0.0001)
+            self.cmk.initbyprob(str(language.__hash__()), 0.00001, 0.00001)
 
         self.memory_usage = 2**22 * 10 * np.dtype(np.int32).itemsize
 
@@ -73,7 +73,7 @@ class PatternCountCache:
         """
         Returns the total number of columns |C|
         """
-        return int(self.redis.get("total_columns"))
+        return int(self.redis.get(f"total_columns"))
 
     def add_data(self, df: pd.DataFrame) -> None:
         """
@@ -81,13 +81,11 @@ class PatternCountCache:
         # TODO complete pair calc
         """
         converted = convert_to_pattern(df, self.language)
-        self.redis.incrby("total_columns", df.shape[1])
-
 
         for column in converted:
             column_unique = converted[column].unique()
 
-            unique_tuples = itertools.combinations(column_unique, 2)
+            unique_tuples = itertools.combinations_with_replacement(column_unique, 2)
             combos = ["Ä".join(sorted(combo)) for combo in unique_tuples]
             combo_increment = [1 for _ in combos]
             if len(combos) == 0: continue
@@ -153,7 +151,7 @@ class Scoring:
         pmi = self.pmi(value1, value2)
         if pmi == float("-inf"): return -1
 
-        return pmi / denominator
+        return np.clip(pmi / denominator, 0.0, 1.0)
 
     def smoothed_npmi(self, value1, value2, smoothing=0.2):
         denominator = -safe_log10(self.smoothed_probability(value1, value2, smoothing))
@@ -162,7 +160,7 @@ class Scoring:
         smoothed_pmi = self.smoothed_pmi(value1, value2, smoothing)
         if smoothed_pmi == float("-inf"): return -1
 
-        return smoothed_pmi / denominator
+        return np.clip(smoothed_pmi / denominator, 0.0, 1.0)
 
     def compatible(self, value1, value2, threshold):
         return self.npmi(value1, value2) > threshold
@@ -182,6 +180,8 @@ def st_aggregate(training_set: list[tuple[str, str, Label]], scoring: Scoring, m
         (
             scoring.cache.language.convert(training_sample[0]),
             scoring.cache.language.convert(training_sample[1]),
+            training_sample[0],
+            training_sample[1],
             training_sample[2]
         ) for training_sample in training_set
     ]
@@ -190,14 +190,14 @@ def st_aggregate(training_set: list[tuple[str, str, Label]], scoring: Scoring, m
         (
             scoring.smoothed_npmi(training_sample[0],
                                   training_sample[1]),
-            training_sample
+            (training_sample[2], training_sample[3], training_sample[4])
         ) for training_sample in converted_samples
     ]
 
     # print(scores)
 
     total = np.arange(-1.0, 1.1, 0.01).size
-    for idx, threshold in enumerate(np.arange(-1.0, 1.1, 0.01)):
+    for idx, threshold in enumerate(np.arange(-1.0, 1.01, 0.01)):
         h_plus = set()
         h_minus = set()
 
