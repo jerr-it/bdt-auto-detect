@@ -19,7 +19,7 @@ args = parser.parse_args()
 if not args.dataframe_pickled_path:
     dataframes = generate_df_for_directory(args.train_data_path, workers=10)
 else:
-    dataframes = dill.load(open(args.training_set, "rb"))
+    dataframes = dill.load(open(args.dataframe_pickled_path, "rb"))
 training_set = TrainingSet(dataframes)
 training_set.generate_training_set(args.training_set_size)
 autodetect = AutoDetect(training_set, args.min_precision, args.memory_budget)
