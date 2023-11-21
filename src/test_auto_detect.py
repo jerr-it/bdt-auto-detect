@@ -19,6 +19,8 @@ class TestFile:
         self.df = read_tsv_file(file_path)
         self.name = os.path.basename(file_path)
 
+        self.parse()
+
     def parse(self):
         self.drop_ambiguous()
 
@@ -108,13 +110,13 @@ class TestFile:
         return worst_pair, worst_score, worst_label
 
 
-class TestLabel(Enum):
+class TestLabel(int, Enum):
     COMPATIBLE = 0
     AMBIGUOUS = 1
     INCOMPATIBLE = 2
 
 
-class TestColumn(Enum):
+class TestColumn(int, Enum):
     WIKIPEDIA_URL = 0
     TABLE_CAPTION = 1
     SECTION_HEADING = 2
@@ -131,7 +133,7 @@ class TestColumn(Enum):
 # -------------------------------
 
 def read_tsv_file(file_path: str) -> pd.DataFrame:
-    dataframe = pd.read_csv(file_path, sep='\t')
+    dataframe = pd.read_csv(file_path, header=None, sep='\t', na_values=['\t\t'])
     return dataframe
 
 
@@ -149,7 +151,7 @@ def read_test_files(path: str) -> list[TestFile]:
 
 def list_to_tuple(value: list) -> tuple:
     if len(value) != 2:
-        raise ValueError(f"Cannot convert list of length {len(value)} (!= 2) to tuple")
+        raise ValueError(f"Cannot convert list {value} to tuple")
 
     return value[0], value[1]
 
@@ -181,6 +183,7 @@ if autodetect is None:
 
 pp = pprint.PrettyPrinter(depth=1)
 
+# TODO: Compare against seeded random classifier
 test_files = read_test_files(args.test_path)
 for test_file in test_files:
     statistics = test_file.test(autodetect.predict_nonsense)
