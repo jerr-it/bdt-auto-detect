@@ -63,7 +63,7 @@ class TrainingSet:
         self.scorings[language] = Scoring(cache)
 
     def __init__(self, corpus: list[pd.DataFrame]):
-        redis = Redis(host='localhost', port=6379, db=0)
+        redis = redis.Redis(host="localhost", port=6379, db=0, password=os.getenv("REDIS_PASSWORD", None))
         redis.incrby("total_columns", sum([df.shape[1] for df in corpus]))
 
         self.caches = {}
@@ -84,7 +84,7 @@ class TrainingSet:
                 print(f"Creating count cache for language {str(cache.language)}")
                 self.caches[cache.language] = cache
                 self.scorings[cache.language] = Scoring(cache)
-                cache.redis = Redis(host='localhost', port=6379, db=0)
+                cache.redis = redis.Redis(host="localhost", port=6379, db=0, password=os.getenv("REDIS_PASSWORD", None))
                 cache.cmk = cache.redis.cms()
 
         # print("Creating pattern count caches ...")
@@ -212,17 +212,17 @@ class TrainingSet:
             scoring.cache.cmk = None
 
     def add_redis_connections(self):
-        self.cache.redis = redis.Redis(host='localhost', port=6379, db=0)
+        self.cache.redis = redis.Redis(host="localhost", port=6379, db=0, password=os.getenv("REDIS_PASSWORD", None))
         self.cache.cmk = self.cache.redis.cms()
-        self.scoring.cache.redis = redis.Redis(host='localhost', port=6379, db=0)
+        self.scoring.cache.redis = redis.Redis(host="localhost", port=6379, db=0, password=os.getenv("REDIS_PASSWORD", None))
         self.scoring.cache.cmk = self.scoring.cache.redis.cms()
 
         for cache in self.caches.values():
-            cache.redis = redis.Redis(host='localhost', port=6379, db=0)
+            cache.redis = redis.Redis(host="localhost", port=6379, db=0, password=os.getenv("REDIS_PASSWORD", None))
             cache.cmk = cache.redis.cms()
 
         for scoring in self.scorings.values():
-            scoring.cache.redis = redis.Redis(host='localhost', port=6379, db=0)
+            scoring.cache.redis = redis.Redis(host="localhost", port=6379, db=0, password=os.getenv("REDIS_PASSWORD", None))
             scoring.cache.cmk = scoring.cache.redis.cms()
 
     @staticmethod

@@ -10,7 +10,7 @@ from src.stats.npmi import st_aggregate, Scoring
 from src.utils.label import Label
 
 def st_aggregate_worker(tuples: list[tuple[str, str, Label]], scoring: Scoring, min_precision: float, language: Language) -> Language | None:
-    scoring.cache.redis = redis.Redis(host="localhost", port=6379, db=0)
+    scoring.cache.redis = redis.Redis(host="localhost", port=6379, db=0, password=os.getenv("REDIS_PASSWORD", None))
     scoring.cache.cmk = scoring.cache.redis.cms()
     try:
         language.threshold, language.h_minus, language.h_plus = st_aggregate(tuples, scoring, min_precision)
@@ -116,7 +116,7 @@ class AutoDetect:
             return {L_k}
 
     # Throws KeyError in case of unseen value
-    def predict_nonsense(self, v1, v2) -> (bool, float):
+    def predict(self, v1, v2) -> (bool, float):
         print(self.best_languages)
         best_score = float("-inf")
         key_errors = 0

@@ -2,16 +2,15 @@
 This module contains the necessary functions to generalize
 values into patterns and calculate the NPMI score of patterns.
 """
+import itertools
 import math
 
 import numpy as np
 import pandas as pd
-import itertools
 import redis
 
-from src.utils.label import Label
 from src.stats.language import Language
-from src.utils.countminsketch import CMSketch
+from src.utils.label import Label
 
 
 def convert_to_pattern(df: pd.DataFrame, language: Language) -> pd.DataFrame:
@@ -34,7 +33,7 @@ class PatternCountCache:
     """
 
     def __init__(self, language: Language, skip_db_init=False):
-        self.redis = redis.Redis(host='localhost', port=6379, db=0)
+        self.redis = redis.Redis(host="localhost", port=6379, db=0, password=os.getenv("REDIS_PASSWORD", None))
         self.cmk = self.redis.cms()
         if not skip_db_init:
             self.cmk.initbyprob(str(language.__hash__()), 0.00001, 0.00001)
@@ -176,6 +175,11 @@ def safe_log10(value):
 
 def st_aggregate(training_set: list[tuple[str, str, Label]], scoring: Scoring, min_precision: float) -> (
         float, set, set):
+    """
+    n -> number of training tuples
+    2n + 100n
+    """
+
     converted_samples = [
         (
             scoring.cache.language.convert(training_sample[0]),
