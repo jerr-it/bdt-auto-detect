@@ -1,3 +1,4 @@
+import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 import redis
@@ -23,7 +24,7 @@ class AutoDetect:
         self.trainings_set = trainings_set
         self.memory_budget = memory_budget
 
-        with ProcessPoolExecutor(max_workers=20) as executor:
+        with ProcessPoolExecutor(max_workers=int(os.getenv("WORKERS", 20))) as executor:
             futures = []
             for language in L:
                 scoring = trainings_set.scorings[language]

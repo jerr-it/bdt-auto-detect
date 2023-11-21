@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import os.path
 import random
 from concurrent.futures import as_completed
@@ -75,7 +76,7 @@ class TrainingSet:
         self.tuples = []
 
         print("Creating pattern count caches ...")
-        with ProcessPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        with ProcessPoolExecutor(max_workers=int(os.getenv("WORKERS", 20))) as executor:
             futures = [executor.submit(generate_language_cache, corpus, language, idx) for idx, language in enumerate(L)]
 
             for future in as_completed(futures):
@@ -136,7 +137,7 @@ class TrainingSet:
         result = []
         print("Starting to generate dirty training set ...")
 
-        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        with ProcessPoolExecutor(max_workers=int(os.getenv("WORKERS", 20))) as executor:
             futures = [executor.submit(generate_dirty_training_set_worker, self.columns, size // MAX_WORKERS, samples_per_iteration) for _ in range(MAX_WORKERS)]
 
         for future in as_completed(futures):
