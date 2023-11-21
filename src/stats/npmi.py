@@ -7,6 +7,7 @@ import math
 import numpy as np
 import pandas as pd
 import itertools
+import redis
 
 from src.utils.label import Label
 from src.stats.language import Language
@@ -32,11 +33,15 @@ class PatternCountCache:
     This class is used to compute and cache the count of patterns in all given columns.
     """
 
-    def __init__(self, language: Language):
-        self.column_count = 0
+    def __init__(self, language: Language, skip_db_init=False):
+        self.redis = redis.Redis(host='localhost', port=6379, db=0)
+        self.cmk = self.redis.cms()
+        if not skip_db_init:
+            self.cmk.initbyprob(str(language.__hash__()), 0.0001, 0.0001)
+
         self.memory_usage = 2**22 * 10 * np.dtype(np.int32).itemsize
 
-        self.cmk = CMSketch(str(language.__hash__()), 2*20, 10)
+        #self.cmk = CMSketch(str(language.__hash__()), 2*20, 10)
 
         self.dict = {}
         self.language = language
@@ -46,7 +51,7 @@ class PatternCountCache:
         Returns the count of a pattern.
         """
         try:
-            return self.cmk.get(pattern)
+            return self.cmk.query(str(self.language.__hash__()), pattern)[0]
             # return self.dict[pattern]
         except KeyError:
             return 0
@@ -58,7 +63,7 @@ class PatternCountCache:
         """
         try:
             key = "Ä".join(sorted([pattern1, pattern2]))
-            return self.cmk.get(key)
+            return self.cmk.query(str(self.language.__hash__()), key)[0]
             # return self.dict[key] if key in self.dict else 0
         except KeyError:
             return 0
@@ -68,7 +73,7 @@ class PatternCountCache:
         """
         Returns the total number of columns |C|
         """
-        return self.column_count
+        return int(self.redis.get("total_columns"))
 
     def add_data(self, df: pd.DataFrame) -> None:
         """
@@ -76,21 +81,27 @@ class PatternCountCache:
         # TODO complete pair calc
         """
         converted = convert_to_pattern(df, self.language)
-        self.column_count += df.shape[1]
+        self.redis.incrby("total_columns", df.shape[1])
+
 
         for column in converted:
             column_unique = converted[column].unique()
 
             unique_tuples = itertools.combinations(column_unique, 2)
+            combos = ["Ä".join(sorted(combo)) for combo in unique_tuples]
+            combo_increment = [1 for _ in combos]
+            if len(combos) == 0: continue
 
-            for pattern in column_unique:
-                self.cmk.inc(pattern, 1)
-                # self.dict[pattern] = self.dict.get(pattern, 0) + 1
-
-            for combo in unique_tuples:
-                key = "Ä".join(sorted(combo))
-                # self.dict[key] = self.dict.get(key, 0) + 1
-                self.cmk.inc(key, 1)
+            self.cmk.incrby(str(self.language.__hash__()), [p for p in column_unique], [1 for _ in column_unique])
+            self.cmk.incrby(str(self.language.__hash__()), combos, combo_increment)
+            # for pattern in column_unique:
+            #     self.cmk.incrby(str(hash(self.language)), pattern, 1)
+            #     # self.dict[pattern] = self.dict.get(pattern, 0) + 1
+            #
+            # for combo in unique_tuples:
+            #     key = "Ä".join(sorted(combo))
+            #     # self.dict[key] = self.dict.get(key, 0) + 1
+            #     self.cmk.incbry(str(hash(self.language)), key, 1)
 
 
 class Scoring:
@@ -185,10 +196,12 @@ def st_aggregate(training_set: list[tuple[str, str, Label]], scoring: Scoring, m
 
     # print(scores)
 
-    for threshold in np.arange(-1.0, 1.1, 0.01):
+    total = np.arange(-1.0, 1.1, 0.01).size
+    for idx, threshold in enumerate(np.arange(-1.0, 1.1, 0.01)):
         h_plus = set()
         h_minus = set()
 
+        print("Checking threshold", threshold, "Progress:", idx / total)
         for score in scores:
             score, training_smpl = score
             if score <= threshold:

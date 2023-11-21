@@ -17,7 +17,12 @@ class Language:
         self.h_plus = set()
 
     def __hash__(self):
-        return hash(tuple(self.pattern_map.items()))
+        tuples = tuple((f.__name__, g.__name__) for f, g in self.pattern_map.items())
+        #print(tuples)
+        return hash(tuples)
+
+    def __eq__(self, other):
+        return hash(self) == hash(other)
 
     def __str__(self):
         return str(self.pattern_map)
@@ -113,3 +118,5 @@ G = Language({
     str.islower: c,
     other: identity,
 }, threshold=-0.3)
+
+print("G Hash:", G.__hash__())

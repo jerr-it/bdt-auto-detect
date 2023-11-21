@@ -1,13 +1,14 @@
 import argparse
 import dill
-
-dill.load_module("session_file.pkl")
+import redis
 
 parser = argparse.ArgumentParser(description="Predict Auto-Detect")
 parser.add_argument("--predict1", type=str, help="String 1")
 parser.add_argument("--predict2", type=str, help="String 2")
 args = parser.parse_args()
 
+autodetect = dill.load(open("autodetect.pkl", "rb"))
+autodetect.trainings_set.add_redis_connections()
 if args.predict1 is None or args.predict2 is None:
     print("No prediction given. Exiting.")
     exit(0)
