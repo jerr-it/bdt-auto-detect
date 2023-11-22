@@ -4,3 +4,5 @@ venv
 *.csv
 *.pyc
 *.pkl
+__pycache__
+train.sh
