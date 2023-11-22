@@ -186,7 +186,7 @@ pp = pprint.PrettyPrinter(depth=1)
 # TODO: Compare against seeded random classifier
 test_files = read_test_files(args.test_path)
 for test_file in test_files:
-    statistics = test_file.test(autodetect.predict_nonsense)
+    statistics = test_file.test(autodetect.predict)
     print(f"=== Testing against {test_file.name} ===")
     print(f"Statistics:")
     pp.pprint(statistics)

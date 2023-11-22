@@ -4,7 +4,7 @@ values into patterns and calculate the NPMI score of patterns.
 """
 import itertools
 import math
-
+import os
 import numpy as np
 import pandas as pd
 import redis

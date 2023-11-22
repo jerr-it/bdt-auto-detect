@@ -1,3 +1,6 @@
 assets
 venv
 .idea
+*.csv
+*.pyc
+*.pkl
