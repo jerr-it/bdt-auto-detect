@@ -75,24 +75,26 @@ class TrainingSet:
         self.scoring = Scoring(self.cache)
         self.tuples = []
 
-        print("Creating pattern count caches ...")
-        with ProcessPoolExecutor(max_workers=int(os.getenv("WORKERS", 20))) as executor:
-            futures = [executor.submit(generate_language_cache, corpus, language, idx) for idx, language in enumerate(L)]
-
-            for future in as_completed(futures):
-                cache = future.result()
-                print(f"Creating count cache for language {str(cache.language)}")
-                self.caches[cache.language] = cache
-                self.scorings[cache.language] = Scoring(cache)
-                cache.redis = Redis(host="localhost", port=6379, db=0, password=os.getenv("REDIS_PASSWORD", None))
-                cache.cmk = cache.redis.cms()
-
         # print("Creating pattern count caches ...")
-        # for index, language in enumerate(L):
-        #     cache = PatternCountCache(language)
-        #     self.caches[language] = cache
-        #     self.scorings[language] = Scoring(cache)
-        #     print(f"Creating count cache for language {index} of {len(L)}")
+        # with ProcessPoolExecutor(max_workers=int(os.getenv("WORKERS", 20))) as executor:
+        #     futures = [executor.submit(generate_language_cache, corpus, language, idx) for idx, language in enumerate(L)]
+        #
+        #     for future in as_completed(futures):
+        #         cache = future.result()
+        #         print(f"Creating count cache for language {str(cache.language)}")
+        #         self.caches[cache.language] = cache
+        #         self.scorings[cache.language] = Scoring(cache)
+        #         cache.redis = Redis(host="localhost", port=6379, db=0, password=os.getenv("REDIS_PASSWORD", None))
+        #         cache.cmk = cache.redis.cms()
+
+        print("Creating pattern count caches ...")
+        for index, language in enumerate(L):
+            cache = PatternCountCache(language)
+            print(f"Creating count cache for language {str(cache.language)}")
+            self.caches[language] = cache
+            self.scorings[language] = Scoring(cache)
+            cache.redis = Redis(host="localhost", port=6379, db=0, password=os.getenv("REDIS_PASSWORD", None))
+            cache.cmk = cache.redis.cms()
 
         # with ProcessPoolExecutor(max_workers=MAX_WORKERS) as executor:
         #     futures = [executor.submit(self.calculate_language_cache, lang) for lang in L]
