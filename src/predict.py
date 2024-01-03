@@ -7,10 +7,10 @@ parser.add_argument("--predict1", type=str, help="String 1")
 parser.add_argument("--predict2", type=str, help="String 2")
 args = parser.parse_args()
 
-autodetect = dill.load(open("autodetect.pkl", "rb"))
-autodetect.memory_budget = 10e8
-autodetect.train()
-autodetect.trainings_set.add_redis_connections()
+autodetect = dill.load(open("autodetect_09_05.pkl", "rb"))
+#autodetect.memory_budget = 10e8
+#autodetect.train()
+#autodetect.trainings_set.add_redis_connections()
 if args.predict1 is None or args.predict2 is None:
     print("No prediction given. Exiting.")
     exit(0)

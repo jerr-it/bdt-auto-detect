@@ -32,7 +32,7 @@ def generate_df_for_directory(path, workers=10):
     dataframes = []
     count = 0
     with ProcessPoolExecutor(max_workers=workers) as executor:
-        futures = [executor.submit(generated_df, os.path.join(path, filename)) for filename in os.listdir(path)[0:1000]]
+        futures = [executor.submit(generated_df, os.path.join(path, filename)) for filename in os.listdir(path)]
         for future in concurrent.futures.as_completed(futures):
             count += 1
             #print(count)
