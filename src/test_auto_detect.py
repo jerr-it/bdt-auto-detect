@@ -188,7 +188,7 @@ test_dfs = list(map(lambda file: file.df, test_files))
 test_suite = TestSuite(test_dfs)
 
 statistics = test_suite.test(autodetect.predict)
-statistics_decline_all = test_suite.test(lambda _: )
+statistics_decline_all = test_suite.test(lambda _: [None])
 
 print()
 print(f"=== Test results ===")
