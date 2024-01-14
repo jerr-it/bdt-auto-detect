@@ -6,6 +6,7 @@ from typing import Callable, Dict, List, Tuple
 
 import numpy
 import pandas as pd
+import dill
 
 from auto_detect import AutoDetect
 
@@ -104,10 +105,11 @@ class TestSuite:
         correct_labels = 0  # Greatest importance since incompatibility should be independent of specifics
 
         # !!! Note that in the test format each row represents a Wikipedia column
-        for _, column_data in self.df.iterrows():
+        for idx, column_data in self.df.iterrows():
             test_label = column_data.iloc[TestColumn.LABEL]
             predicted_label = self.test_column(column_data, classifier)
 
+            print("Progress:", int(idx), "of", len(self.df))
             # Basic statistics
             if predicted_label == test_label:
                 correct_labels += 1
@@ -162,13 +164,12 @@ def list_to_tuple(value: list) -> tuple:
 
 
 def test_label_to_bool(value: TestLabel) -> bool:
-    match value:
-        case TestLabel.COMPATIBLE:
-            return True
-        case TestLabel.INCOMPATIBLE:
-            return False
-        case _:
-            raise ValueError(f"Ambiguous test labels cannot be converted to a boolean")
+    if value == TestLabel.COMPATIBLE:
+        return True
+    if value == TestLabel.INCOMPATIBLE:
+        return False
+    
+    raise ValueError(f"Ambiguous test labels cannot be converted to a boolean")
 
 
 # -------------------------------
@@ -179,7 +180,7 @@ parser = argparse.ArgumentParser(description="Test Auto-Detect")
 parser.add_argument("--test_path", type=str, help="Path to the folder containing labeled '.tsv'-files")
 args = parser.parse_args()
 
-# TODO: Add AutoDetect
+autodetect = dill.load(open("autodetect_09_05.pkl.bak", "rb"))
 
 pp = pprint.PrettyPrinter(depth=1)
 
