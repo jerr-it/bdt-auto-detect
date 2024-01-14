@@ -8,6 +8,7 @@ import os
 import numpy as np
 import pandas as pd
 import redis
+from redis import Redis
 
 from src.stats.language import Language
 from src.utils.label import Label
@@ -44,6 +45,7 @@ class PatternCountCache:
 
         self.dict = {}
         self.language = language
+        self.col_size = int(self.redis.get(f"total_columns"))
 
     def pattern_occurrences(self, pattern: str) -> int:
         """
@@ -72,7 +74,7 @@ class PatternCountCache:
         """
         Returns the total number of columns |C|
         """
-        return int(self.redis.get(f"total_columns"))
+        return self.col_size
 
     def add_data(self, df: pd.DataFrame) -> None:
         """
@@ -99,6 +101,21 @@ class PatternCountCache:
             #     key = "Ä".join(sorted(combo))
             #     # self.dict[key] = self.dict.get(key, 0) + 1
             #     self.cmk.incbry(str(hash(self.language)), key, 1)
+
+    @staticmethod
+    def add_data_for_language(language: Language, df: pd.DataFrame, conn: Redis):
+        converted = convert_to_pattern(df, language)
+
+        for column in converted:
+            column_unique = converted[column].unique()
+
+            unique_tuples = itertools.combinations_with_replacement(column_unique, 2)
+            combos = ["Ä".join(sorted(combo)) for combo in unique_tuples]
+            combo_increment = [1 for _ in combos]
+            if len(combos) == 0: continue
+
+            conn.cms().incrby(str(language.__hash__()), [p for p in column_unique], [1 for _ in column_unique])
+            conn.cms().incrby(str(language.__hash__()), combos, combo_increment)
 
 
 class Scoring:
@@ -173,52 +190,104 @@ def safe_log10(value):
     return math.log10(value)
 
 
-def st_aggregate(training_set: list[tuple[str, str, Label]], scoring: Scoring, min_precision: float) -> (
+def st_aggregate(conn: Redis, scoring: Scoring, min_precision: float) -> (
         float, set, set):
     """
     n -> number of training tuples
     2n + 100n
     """
 
-    converted_samples = [
-        (
-            scoring.cache.language.convert(training_sample[0]),
-            scoring.cache.language.convert(training_sample[1]),
-            training_sample[0],
-            training_sample[1],
-            training_sample[2]
-        ) for training_sample in training_set
-    ]
+    # converted_samples = [
+    #     (
+    #         scoring.cache.language.convert(training_sample[0]),
+    #         scoring.cache.language.convert(training_sample[1]),
+    #         training_sample[0],
+    #         training_sample[1],
+    #         training_sample[2]
+    #     ) for training_sample in training_set
+    # ]
 
-    scores = [
-        (
-            scoring.smoothed_npmi(training_sample[0],
-                                  training_sample[1]),
-            (training_sample[2], training_sample[3], training_sample[4])
-        ) for training_sample in converted_samples
-    ]
+    # scores = [
+    #     (
+    #         scoring.smoothed_npmi(training_sample[0],
+    #                               training_sample[1]),
+    #         (training_sample[2], training_sample[3], training_sample[4])
+    #     ) for training_sample in converted_samples
+    # ]
 
     # print(scores)
 
-    total = np.arange(-1.0, 1.1, 0.01).size
-    for idx, threshold in enumerate(np.arange(-1.0, 1.01, 0.01)):
-        h_plus = set()
-        h_minus = set()
+    tuple_count = int(conn.get("training_set_size"))
 
-        print("Checking threshold", threshold, "Progress:", idx / total)
-        for score in scores:
-            score, training_smpl = score
+    h_plus_list: list[set] = [set() for _ in np.arange(1.0, -1.01, -0.01)]
+    h_minus_list: list[set] = [set() for _ in np.arange(1.0, -1.01, -0.01)]
+
+    print("Adding all tuples to hplus/minus for language:", hash(scoring.cache.language))
+    for i in range(tuple_count):
+        if i % 50000 == 0:
+            print(i, "out of", tuple_count, "for language", hash(scoring.cache.language))
+        training_smpl = tuple(conn.json().get(f"training_tuples:{i + offset}"))
+        score = scoring.smoothed_npmi(
+            scoring.cache.language.convert(training_smpl[0]),
+            scoring.cache.language.convert(training_smpl[1]),
+        )
+
+        for threshold in np.arange(1.0, -1.01, -0.01):
             if score <= threshold:
-                if training_smpl[2] == Label.POSITIVE:
-                    h_plus.add(training_smpl)
+                # detected as not compatible
+                if training_smpl[2] == Label.POSITIVE.value:
+                    h_plus_list[t_index(threshold)].add(training_smpl)
                 else:
-                    h_minus.add(training_smpl)
+                    h_minus_list[t_index(threshold)].add(training_smpl)
+        
 
-        if len(h_minus) + len(h_plus) == 0: continue
-        precision = len(h_minus) / (len(h_minus) + len(h_plus))
+    for threshold in np.arange(1.0, -1.01, -0.01):
+        plus = h_plus_list[t_index(threshold)]
+        minus = h_minus_list[t_index(threshold)]
 
+        print("plus:", len(plus))
+        print("minus:", len(minus))
+
+        if len(plus) + len(minus) == 0:
+            continue
+        precision = len(minus) / (len(minus) + len(plus))
+        print("Precision:", precision)
         if precision >= min_precision:
-            print("found threshold")
-            return threshold, h_minus, h_plus
+            print("Threshold found", str(threshold))
+            return threshold, minus, plus
 
+#    total = np.arange(-1.0, 1.1, 0.01).size
+#    for idx, threshold in enumerate(np.arange(-1.0, 1.01, 0.01)):
+#        h_plus = set()
+#        h_minus = set()
+#
+#        print("Checking threshold", threshold, "Progress:", idx / total)
+#        for i in range(tuple_count):
+#            # Potential error if not retrieved as tuple
+#            training_smpl = conn.json().get(f"training_tuples:{i}")
+#            score = scoring.smoothed_npmi(
+#                scoring.cache.language.convert(training_smpl[0]),
+#                scoring.cache.language.convert(training_smpl[1]),
+#            )
+#            
+#            if score <= threshold:
+#                if training_smpl[2] == Label.POSITIVE.value:
+#                    h_plus.add(training_smpl)
+#                else:
+#                    h_minus.add(training_smpl)
+#
+#        if len(h_minus) + len(h_plus) == 0: continue
+#        precision = len(h_minus) / (len(h_minus) + len(h_plus))
+#
+#        if precision >= min_precision:
+#            print("found threshold")
+#            return threshold, h_minus, h_plus
+
+    print("No threshold")
     raise SyntaxError("No threshold found")
+
+thresholds = list(np.arange(1.0, -1.01, -0.01))
+# threshold index
+def t_index(threshold):
+    global thresholds
+    return thresholds.index(threshold)

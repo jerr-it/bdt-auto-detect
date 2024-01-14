@@ -6,50 +6,49 @@ import random
 from concurrent.futures import as_completed
 from concurrent.futures.process import ProcessPoolExecutor
 from concurrent.futures.thread import ThreadPoolExecutor
+import concurrent
+import multiprocessing
 
 import dill
 
 import pandas as pd
+import numpy as np
 import redis
 from redis import Redis
 
 from src.data_gen.auto_gen_tests import generate_df_for_directory
 
 from src.stats.language import G
+from src.stats.language import Language
 from src.stats.npmi import Scoring, PatternCountCache
 from src.stats.language import L
 from src.utils.label import Label
 
 MAX_WORKERS = 20
-
+SAMPLES_PER_ITERATION = 20
 
 class CleanColumns:
     """
     Represents a set of clean columns C+, taken from the corpus C and verified to be clean.
     """
 
-    def __init__(self, corpus: list[pd.DataFrame]):
-        if not isinstance(corpus, list):
-            raise ValueError("Corpus must be of type list[pd.DataFrame]")
-
-        # Usually verify if data is clean, but for now we assume it is clean
-        for corp in corpus:
-            ...
-            #print("------------------------")
-            #print(corp)
-        self.corpus = [df.copy() for df in corpus]
+    def __init__(self, conn: Redis):
+        self.conn = conn
 
     def sample_column(self) -> pd.Series:
         """
         Returns a random column from the corpus.
         """
-        df = random.choice(self.corpus)
+        df_count = int(self.conn.get("corpus_length"))
 
+        df = pd.DataFrame()
         while len(df.columns) == 0:
-            df = random.choice(self.corpus)
-
+            df_random_index = random.randint(0, df_count - 1)
+            df_dict = self.conn.json().get(f"corpus:{df_random_index}", "$")[0]
+            df = pd.DataFrame.from_dict(df_dict)
+        
         col = random.choice(df.columns)
-        return df[col]
+        return df[col].astype(str)
 
 
 class TrainingSet:
@@ -62,30 +61,17 @@ class TrainingSet:
         self.caches[language] = cache
         self.scorings[language] = Scoring(cache)
 
-    def __init__(self, corpus: list[pd.DataFrame]):
-        redis = Redis(host="localhost", port=6379, db=0, password=os.getenv("REDIS_PASSWORD", None))
-        redis.incrby("total_columns", sum([df.shape[1] for df in corpus]))
+    def __init__(self, populate_cms=False):
+        self.conn = redis.Redis(host="localhost", port=6379, db=0, password=os.getenv("REDIS_PASSWORD", ""))
 
         self.caches = {}
         self.scorings = {}
         global MAX_WORKERS
 
-        self.columns = CleanColumns(corpus)
+        self.columns = CleanColumns(self.conn)
         self.cache = PatternCountCache(G)
         self.scoring = Scoring(self.cache)
         self.tuples = []
-
-        # print("Creating pattern count caches ...")
-        # with ProcessPoolExecutor(max_workers=int(os.getenv("WORKERS", 20))) as executor:
-        #     futures = [executor.submit(generate_language_cache, corpus, language, idx) for idx, language in enumerate(L)]
-        #
-        #     for future in as_completed(futures):
-        #         cache = future.result()
-        #         print(f"Creating count cache for language {str(cache.language)}")
-        #         self.caches[cache.language] = cache
-        #         self.scorings[cache.language] = Scoring(cache)
-        #         cache.redis = Redis(host="localhost", port=6379, db=0, password=os.getenv("REDIS_PASSWORD", None))
-        #         cache.cmk = cache.redis.cms()
 
         print("Creating pattern count caches ...")
         for index, language in enumerate(L):
@@ -96,23 +82,17 @@ class TrainingSet:
             cache.redis = Redis(host="localhost", port=6379, db=0, password=os.getenv("REDIS_PASSWORD", None))
             cache.cmk = cache.redis.cms()
 
-        # with ProcessPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        #     futures = [executor.submit(self.calculate_language_cache, lang) for lang in L]
-        #
-        #     for future in concurrent.futures.as_completed(futures):
-        #         future.result()
+        if not populate_cms: return
+        
+        corpus_length = int(self.conn.get("corpus_length"))
+        max_workers = os.getenv("MAX_WORKERS", 20)
+        with ProcessPoolExecutor(max_workers=max_workers, mp_context=multiprocessing.get_context("spawn")) as executor:
+            futures = [
+                executor.submit(fill_cache_worker, start, end, L) for start, end in chunks(range(corpus_length), corpus_length // max_workers)
+            ]
 
-        # print("Adding data to pattern count caches ...")
-        # for _index, df in enumerate(corpus):
-        #     print(f"Adding dataframe to all languages ... {_index} of {len(corpus)}")
-        #     self.cache.add_data(df)
-        #     for index, (language, cache) in enumerate(self.caches.items()):
-        #         cache.add_data(df)
-
-            #print("Adding corpus... " + str(_index / len(corpus)))
-
-
-
+            for future in concurrent.futures.as_completed(futures):
+                future.result()
 
     def generate_clean_training_set(self, size: int, samples_per_iteration=1) -> list[tuple[str, str, Label]]:
         """
@@ -121,13 +101,17 @@ class TrainingSet:
         """
         tuples_generated = 0
         result = []
+        global TUPLE_IDX
 
         while tuples_generated < size:
             print(f"Sampling columns for clean set ... {tuples_generated} of {size}")
             original = self.columns.sample_column()
-            for i in range(samples_per_iteration):
+            if len(original) == 0:
+                continue
+            for _ in range(samples_per_iteration):
                 result.append((str(original.sample().to_numpy()[0]), str(original.sample().to_numpy()[0]), Label.POSITIVE))
                 tuples_generated += 1
+
 
         return result
 
@@ -139,12 +123,11 @@ class TrainingSet:
         result = []
         print("Starting to generate dirty training set ...")
 
-        with ProcessPoolExecutor(max_workers=int(os.getenv("WORKERS", 20))) as executor:
-            futures = [executor.submit(generate_dirty_training_set_worker, self.columns, size // MAX_WORKERS, samples_per_iteration) for _ in range(MAX_WORKERS)]
-
-        for future in as_completed(futures):
-            result.extend(future.result())
-
+        #with ProcessPoolExecutor(max_workers=int(os.getenv("WORKERS", 20))) as executor:
+        #    futures = [executor.submit(generate_dirty_training_set_worker, self.columns, size // MAX_WORKERS, samples_per_iteration) for _ in range(MAX_WORKERS)]
+        #for future in as_completed(futures):
+        #    result.extend(future.result())
+        result.extend(generate_dirty_training_set_worker(self.columns, size, samples_per_iteration=SAMPLES_PER_ITERATION))
         print("Finished generating dirty training set")
         return result
 
@@ -157,6 +140,13 @@ class TrainingSet:
         clean_test_set = self.generate_clean_training_set(size // 2)
         dirty_test_set = self.generate_dirty_training_set(size // 2)
         self.tuples = clean_test_set + dirty_test_set
+
+        for idx, t in enumerate(self.tuples):
+            print("Adding: ", idx, t)
+            self.conn.json().set(f"training_tuples:{idx}", "$", t)
+        
+        self.conn.set("training_set_size", len(self.tuples))
+
         return self.tuples
 
     def is_compatible(self, c1: pd.Series, c2: pd.Series) -> bool:
@@ -180,6 +170,7 @@ class TrainingSet:
         Used to check if two columns are compatible.
         """
         scoring = Scoring(PatternCountCache(G, skip_db_init=True))
+        if len(c1) == 0 or len(c2) == 0: return True # returns True so that generate_dirty skips this
         if len(c1) > len(c2):
             c1, c2 = c2, c1
 
@@ -265,7 +256,7 @@ def generate_dirty_training_set_worker(columns: CleanColumns, size: int, samples
 
         v1 = o1.sample(samples_per_iteration, replace=True).to_numpy()
         v2 = o2.sample(samples_per_iteration, replace=True).to_numpy()
-        v_all = list(zip(str(v1), str(v2), [Label.NEGATIVE for _ in range(samples_per_iteration)]))
+        v_all = list(zip(v1, v2, [Label.NEGATIVE for _ in range(samples_per_iteration)]))
         result.extend(v_all)
         tuples_generated += samples_per_iteration
 
@@ -280,3 +271,20 @@ def generate_language_cache(corpus, language, idx) -> PatternCountCache:
     cache.redis = None
     cache.cmk = None
     return cache
+
+def chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield (i, i+n)
+
+def fill_cache_worker(start: int, end: int, languages: list[Language]):
+    conn = redis.Redis(password=os.getenv("REDIS_PASSWORD", None))
+
+    for i in range(start, end):
+        df_dict = conn.json().get(f"corpus:{i}", "$")[0]
+        df = pd.DataFrame.from_dict(df_dict)
+        for language in languages:
+            PatternCountCache.add_data_for_language(language, df, conn)
+        
+        if i % 10000:
+            print(f"Added {i} of {end} ...")

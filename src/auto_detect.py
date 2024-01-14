@@ -4,33 +4,32 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import redis
 
 from src.stats.language import L, Language
-from src.data_gen.training_data_generation import TrainingSet
-from src.stats.npmi import st_aggregate, Scoring
+from src.stats.npmi import st_aggregate, Scoring, PatternCountCache
 
-from src.utils.label import Label
 
-def st_aggregate_worker(tuples: list[tuple[str, str, Label]], scoring: Scoring, min_precision: float, language: Language) -> Language:
-    scoring.cache.redis = redis.Redis(host="localhost", port=6379, db=0, password=os.getenv("REDIS_PASSWORD", None))
-    scoring.cache.cmk = scoring.cache.redis.cms()
+def st_aggregate_worker(min_precision: float, language: Language) -> Language:
+    scoring = Scoring(PatternCountCache(language=language, skip_db_init=True))
+    redis_conn = redis.Redis(host="localhost", port=6379, db=0, password=os.getenv("REDIS_PASSWORD", None))
+    scoring.cache.cmk = redis_conn.cms()
+    
     try:
-        language.threshold, language.h_minus, language.h_plus = st_aggregate(tuples, scoring, min_precision)
+        language.threshold, language.h_minus, language.h_plus = st_aggregate(redis_conn, scoring, min_precision)
     except SyntaxError:
         return None
+
+    scoring = None
     return language
 
+
 class AutoDetect:
-    def __init__(self, trainings_set: TrainingSet, min_precision: float, memory_budget: int = 10e9):
-        self.L_reduced = L.copy()
-        self.trainings_set = trainings_set
+    def __init__(self, min_precision: float, memory_budget: int = 10e9):
+        self.L_reduced = []
         self.memory_budget = memory_budget
 
-        with ProcessPoolExecutor(max_workers=int(os.getenv("WORKERS", 20))) as executor:
+        with ProcessPoolExecutor(max_workers=int(os.getenv("WORKERS", 10))) as executor:
             futures = []
             for language in L:
-                scoring = trainings_set.scorings[language]
-                scoring.cache.redis = None
-                scoring.cache.cmk = None
-                futures.append(executor.submit(st_aggregate_worker, trainings_set.tuples, scoring, min_precision, language))
+                futures.append(executor.submit(st_aggregate_worker, min_precision, language))
 
             for future in as_completed(futures):
                 language = future.result()
@@ -59,7 +58,7 @@ class AutoDetect:
             Lc_dash = []
 
             for language in Lc:
-                size = self.trainings_set.caches[language].memory_usage
+                size = PatternCountCache(language=language, skip_db_init=True).memory_usage
                 if size + curr_size > self.memory_budget: continue
                 Lc_dash.append(language)
 
@@ -79,7 +78,7 @@ class AutoDetect:
                     unionized = unionized.union(L_j.h_minus, L_i.h_minus)
 
                 minuend = len(unionized)
-                size = self.trainings_set.caches[L_i].memory_usage
+                size = PatternCountCache(language=L_i, skip_db_init=True).memory_usage
                 score = (minuend - subtrahend) / size
                 #print(score)
                 if score > best_score:
@@ -90,13 +89,13 @@ class AutoDetect:
             L_star = best_language
 
             G_select.add(L_star)
-            curr_size += self.trainings_set.caches[L_star].memory_usage
+            curr_size += PatternCountCache(language=L_star, skip_db_init=True).memory_usage
             Lc.remove(L_star)
 
         L_k = None
         H_k_minus = float("-inf")
         for L_i in L:
-            if self.trainings_set.caches[L_i].memory_usage > self.memory_budget: continue
+            if PatternCountCache(language=L_i, skip_db_init=True).memory_usage > self.memory_budget: continue
 
             if (score := len(L_i.h_minus)) > H_k_minus:
                 H_k_minus = score
@@ -122,7 +121,7 @@ class AutoDetect:
         key_errors = 0
         for language in self.best_languages:
             try:
-                score = self.trainings_set.scorings[language].smoothed_npmi(language.convert(v1), language.convert(v2))
+                score = Scoring(PatternCountCache(language=language, skip_db_init=True)).smoothed_npmi(language.convert(v1), language.convert(v2))
                 print(score, language.threshold, language.convert(v1), language.convert(v2))
                 if score > language.threshold and score > best_score:
                     best_score = score
