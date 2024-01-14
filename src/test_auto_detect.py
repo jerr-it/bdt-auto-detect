@@ -121,6 +121,7 @@ class TestSuite:
 
     def test_column(self, column_data: pd.Series, classifier: Callable[[str, str], Tuple[bool, float]]) -> bool:
         column_values = column_data.iloc[TestColumn.COLUMN_VALUES]
+        if len(column_values) <= 1: return True
 
         for i in range(len(column_values)):
             for j in range(i + 1, len(column_values)):
@@ -187,7 +188,7 @@ test_dfs = list(map(lambda file: file.df, test_files))
 test_suite = TestSuite(test_dfs)
 
 statistics = test_suite.test(autodetect.predict)
-statistics_decline_all = test_suite.test(lambda _: [None])
+statistics_decline_all = test_suite.test(lambda _: )
 
 print()
 print(f"=== Test results ===")
