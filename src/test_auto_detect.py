@@ -100,7 +100,7 @@ class TestSuite:
             self.df[self.df[TestColumn.LABEL] == False].head(limit)
         ])
 
-    def test(self, classifier: Callable[[List[str]], List[str]]) -> Dict[str, float]:
+    def test(self, classifier: Callable[[str, str], Tuple[bool, float]]) -> Dict[str, float]:
         # Basic statistics
         correct_labels = 0  # Greatest importance since incompatibility should be independent of specifics
 
@@ -189,7 +189,7 @@ test_dfs = list(map(lambda file: file.df, test_files))
 test_suite = TestSuite(test_dfs)
 
 statistics = test_suite.test(autodetect.predict)
-statistics_decline_all = test_suite.test(lambda _: [None])
+statistics_decline_all = test_suite.test(lambda _, __: (False, 0.0))
 
 print()
 print(f"=== Test results ===")
