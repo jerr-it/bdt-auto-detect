@@ -180,6 +180,19 @@ class TrainingSet:
                 return False
 
         return True
+    
+    # This method returns the "opposite" (but not really) of what 'is_compatible_worker' used to return.
+    # A value 'u' should only be combined with a value from series 'c' if this method returns 'True'.
+    @staticmethod
+    def can_combine_to_dirty_column(c: pd.Series, u) -> bool:
+        scoring = Scoring(PatternCountCache(G, skip_db_init=True))
+        if len(c) == 0: return False
+
+        for v in c:
+            if scoring.smoothed_compatible(v, u, G.threshold):
+                return False
+
+        return True
 
     # TODO change to dill, pickle wont pickle
     def save(self, filename: str):
