@@ -101,24 +101,37 @@ class TestSuite:
         ])
 
     def test(self, classifier: Callable[[str, str], Tuple[bool, float]]) -> Dict[str, float]:
-        # Basic statistics
-        correct_labels = 0  # Greatest importance since incompatibility should be independent of specifics
+        # Precision
+        total_marked = 0
+        correct_marked = 0
+
+        # Recall
+        correct_label = 0
 
         # !!! Note that in the test format each row represents a Wikipedia column
         for idx, column_data in self.df.iterrows():
+            print("Progress:", int(idx), "of", len(self.df))
+
             test_label = column_data.iloc[TestColumn.LABEL]
             predicted_label = self.test_column(column_data, classifier)
 
-            print("Progress:", int(idx), "of", len(self.df))
-            # Basic statistics
+            # Precision
+            if predicted_label == False:
+                total_marked += 1
+                if test_label == False:
+                    correct_marked += 1
+
+            # Recall
             if predicted_label == test_label:
-                correct_labels += 1
+                correct_label += 1
 
         # Basic statistics
-        labels_precision = correct_labels / len(self.df)
+        precision = correct_marked / total_marked
+        recall = correct_label / len(self.df)
 
         return {
-            "Label precision": labels_precision
+            "precision": precision,
+            "recall": recall
         }
 
     def test_column(self, column_data: pd.Series, classifier: Callable[[str, str], Tuple[bool, float]]) -> bool:
@@ -193,6 +206,7 @@ statistics_decline_all = test_suite.test(lambda _, __: (False, 0.0))
 
 print()
 print(f"=== Test results ===")
-print(f"Precision: {statistics['Label precision']}")
-print(f"Baseline precision (allow everything): {1 - statistics_decline_all['Label precision']}")
-print(f"Baseline precision (decline everything): {statistics_decline_all['Label precision']}")
+print(f"Precision: {statistics['precision']}")
+print(f"Recall: {statistics['recall']}")
+print(f"Baseline precision (decline everything): {statistics_decline_all['precision']}")
+print(f"Baseline recall (decline everything): {statistics_decline_all['recall']}")
