@@ -8,8 +8,6 @@ import numpy
 import pandas as pd
 import dill
 
-from auto_detect import AutoDetect
-
 
 # -------------------------------
 # Models
@@ -142,7 +140,7 @@ class TestSuite:
             for j in range(i + 1, len(column_values)):
                 value1 = column_values[i]
                 value2 = column_values[j]
-                label = classifier(value1, value2)
+                label, _ = classifier(value1, value2)
                 if not label: return False
 
         return True
