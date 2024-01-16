@@ -124,8 +124,15 @@ class TestSuite:
                 correct_label += 1
 
         # Basic statistics
-        precision = correct_marked / total_marked
-        recall = correct_label / len(self.df)
+        if total_marked > 0:
+            precision = correct_marked / total_marked
+        else:
+            precision = pd.NA
+
+        if len(self.df) > 0:
+            recall = correct_label / len(self.df)
+        else:
+            recall = pd.NA
 
         return {
             "precision": precision,
